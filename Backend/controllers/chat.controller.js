@@ -1,10 +1,14 @@
 import chatService from '../services/chat.service.js';
+import activityService from '../services/activity.service.js';
 
 export const sendMessage = async (req, res) => {
     try {
         const { roomId, sender, text, messageType } = req.body;
         
         const message = await chatService.saveMessage(roomId, sender, text, messageType);
+        
+        // Log activity
+        await activityService.logActivity(req.user._id, 'sent_message', `Sent message in ${roomId}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`, { roomId, messageType });
         
         res.status(200).json({
             success: true,

@@ -10,27 +10,50 @@ export default function Register() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
+
+  const validate = () => {
+    const errs = {};
+    if (!email.trim()) errs.email = 'Email is required.';
+    else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Please enter a valid email address.';
+
+    if (!password) errs.password = 'Password is required.';
+    else if (password.length < 6) errs.password = 'Password must be at least 6 characters.';
+
+    if (!confirmPassword) errs.confirmPassword = 'Please confirm your password.';
+    else if (password !== confirmPassword) errs.confirmPassword = 'Passwords do not match.';
+
+    return errs;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) { setError('Email and password are required.'); return; }
-    if (password.length < 3) { setError('Password must be at least 3 characters.'); return; }
+
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      return;
+    }
+
+    setFieldErrors({});
     setLoading(true);
+
     axios.post('/users/register', {
       displayName: displayName || email.split('@')[0],
       email,
-      password
+      password,
     })
-      .then(res => {
+      .then((res) => {
         localStorage.setItem('token', res.data.token);
         setUser(res.data.user);
         navigate('/');
       })
-      .catch(err => {
+      .catch((err) => {
         const errData = err.response?.data;
         if (errData?.errors) setError(errData.errors[0]?.msg || 'Registration failed.');
         else setError(errData?.error || errData || 'Registration failed. Please try again.');
@@ -159,13 +182,19 @@ export default function Register() {
                   <input
                     type="email"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={e => {
+                      setEmail(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, email: '' }));
+                    }}
                     placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 dark:text-white"
+                    className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border rounded-xl focus:outline-none focus:ring-2 text-sm text-gray-900 dark:text-white ${
+                      fieldErrors.email ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
+                    }`}
                     autoComplete="email"
                     required
                   />
                 </div>
+                {fieldErrors.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
               </div>
 
               <div>
@@ -175,9 +204,14 @@ export default function Register() {
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="Min. 3 characters"
-                    className="w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 dark:text-white"
+                    onChange={e => {
+                      setPassword(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, password: '' }));
+                    }}
+                    placeholder="Min. 6 characters"
+                    className={`w-full pl-10 pr-10 py-2.5 bg-gray-50 dark:bg-gray-700 border rounded-xl focus:outline-none focus:ring-2 text-sm text-gray-900 dark:text-white ${
+                      fieldErrors.password ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
+                    }`}
                     autoComplete="new-password"
                     required
                   />
@@ -189,6 +223,7 @@ export default function Register() {
                     <i className={`ri-${showPassword ? 'eye-off' : 'eye'}-line`}></i>
                   </button>
                 </div>
+                {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
                 {password.length > 0 && (
                   <div className="mt-1.5 flex gap-1">
                     {[1, 2, 3].map(i => (
@@ -196,10 +231,32 @@ export default function Register() {
                         password.length >= i * 3
                           ? i === 1 ? 'bg-red-400' : i === 2 ? 'bg-yellow-400' : 'bg-green-400'
                           : 'bg-gray-200 dark:bg-gray-600'
-                      }`}></div>
+                      }`} />
                     ))}
                   </div>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Confirm Password</label>
+                <div className="relative">
+                  <i className="ri-lock-password-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={e => {
+                      setConfirmPassword(e.target.value);
+                      setFieldErrors(prev => ({ ...prev, confirmPassword: '' }));
+                    }}
+                    placeholder="Re-enter password"
+                    className={`w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-700 border rounded-xl focus:outline-none focus:ring-2 text-sm text-gray-900 dark:text-white ${
+                      fieldErrors.confirmPassword ? 'border-red-300 dark:border-red-600' : 'border-gray-200 dark:border-gray-600'
+                    }`}
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+                {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>}
               </div>
 
               <button

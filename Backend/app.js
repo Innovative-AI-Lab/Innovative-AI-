@@ -10,6 +10,8 @@ import chatRoutes from './routes/chat.routes.js';
 import aiRoutes from './routes/ai.routes.js';
 import projectChatRoutes from './routes/projectChat.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import activityRoutes from './routes/activity.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 import { notFound, errorHandler } from './middleware/error.middleware.js';
 
 connect();
@@ -32,6 +34,8 @@ app.use('/chat', chatRoutes);
 app.use('/ai', aiRoutes);
 app.use('/project-chat', projectChatRoutes);
 app.use('/auth', authRoutes);
+app.use('/activity', activityRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -173,6 +173,57 @@ Always give practical, copy-paste ready code that works immediately.`;
             };
         }
     }
+
+    async chatWithAI(message, history = []) {
+        if (!this.apiKeyAvailable) {
+            return {
+                reply: "I'm sorry, but the AI service is currently unavailable. Please check back later.",
+                message: "AI service unavailable"
+            };
+        }
+        try {
+            // Build conversation context
+            let conversationContext = "You are an intelligent AI assistant for Innovative AI, a full-stack development platform. You help developers with coding, architecture, debugging, and best practices.\n\n";
+            
+            if (history.length > 0) {
+                conversationContext += "Previous conversation:\n";
+                history.slice(-10).forEach(msg => { // Keep last 10 messages for context
+                    const role = msg.role === 'user' ? 'User' : 'Assistant';
+                    conversationContext += `${role}: ${msg.content || msg.text}\n`;
+                });
+                conversationContext += "\n";
+            }
+            
+            conversationContext += `Current user message: ${message}\n\nProvide a helpful, accurate response. Keep it concise but comprehensive.`;
+
+            const response = await fetch(`${this.baseURL}?key=${this.apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: conversationContext }] }],
+                    generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const reply = data.candidates[0].content.parts[0].text;
+
+            return {
+                reply: reply.trim(),
+                message: "Response generated successfully"
+            };
+        } catch (error) {
+            console.error('AI Chat Error:', error);
+            return {
+                reply: "I apologize, but I'm having trouble processing your request right now. Please try again later.",
+                message: "Error occurred"
+            };
+        }
+    }
 }
 
 export default new AIService();

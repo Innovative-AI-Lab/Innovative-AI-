@@ -1,5 +1,6 @@
 import aiService from '../services/ai.service.js';
 import AIResponse from '../models/aiResponse.model.js';
+import activityService from '../services/activity.service.js';
 
 export const generateResponse = async (req, res) => {
     try {
@@ -79,5 +80,35 @@ export const analyzeProject = async (req, res) => {
         res.status(200).json(result);
     } catch (error) {
         res.status(500).json({ success: false, error: 'Internal server error', message: error.message });
+    }
+};
+
+export const chatWithAI = async (req, res) => {
+    try {
+        const { message, history } = req.body;
+        
+        if (!message) {
+            return res.status(400).json({
+                success: false,
+                error: 'Message is required'
+            });
+        }
+
+        const result = await aiService.chatWithAI(message, history || []);
+        
+        // Log activity
+        await activityService.logActivity(req.user._id, 'ai_chat', `Chatted with AI: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
+        
+        res.status(200).json({
+            success: true,
+            reply: result.reply,
+            message: result.message
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: error.message
+        });
     }
 };

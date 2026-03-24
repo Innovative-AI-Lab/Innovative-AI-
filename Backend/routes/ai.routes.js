@@ -27,6 +27,16 @@ router.post('/save-response',
     aiController.saveResponse
 );
 
-router.get('/response/:id', aiController.getResponse);
+router.post('/chat',
+    authMiddleware.authUser,
+    body('message').notEmpty().withMessage('Message is required'),
+    body('history').optional().isArray(),
+    aiController.chatWithAI
+);
+
+router.get('/response/:id',
+    authMiddleware.authUser,
+    aiController.getResponse
+);
 
 export default router;

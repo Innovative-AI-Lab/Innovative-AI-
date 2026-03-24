@@ -1,6 +1,7 @@
 import projectModel from "../models/project.model.js";
 import * as projectService from "../services/project.service.js";
 import userModel from "../models/user.model.js";
+import activityService from "../services/activity.service.js";
 import {validationResult} from "express-validator";
 
 
@@ -19,6 +20,9 @@ export const createProject = async (req, res) => {
         const userId = loggedInUser._id;
 
         const newProject = await projectService.createProject({ name, userId });
+
+        // Log activity
+        await activityService.logActivity(userId, 'created_project', `Created project "${name}"`, { projectName: name }, newProject._id);
 
         res.status(201).json(newProject);
 
