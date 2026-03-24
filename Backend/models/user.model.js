@@ -2,26 +2,53 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs"; 
 import jwt from "jsonwebtoken";
 
-const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: false,
-        trim: true
+const userSchema = new mongoose.Schema(
+  {
+    displayName: {
+      type: String,
+      trim: true,
     },
-    email:{
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true,
-        minLength: [3, 'Email should be at least 6 characters long'],
-        maxLength: [50, 'Email should be at most 50 characters long']
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
     },
-    password:{
+    password: {
+      type: String,
+      select: false,
+    },
+    bio: {
+      type: String,
+      trim: true,
+      maxLength: [250, 'Bio should be at most 250 characters long'],
+    },
+    photoURL: {
+      type: String,
+      trim: true,
+    },
+    settings: {
+      theme: {
         type: String,
-        select : false,
-    }
-})
+        default: 'light',
+      },
+      fontSize: {
+        type: Number,
+        default: 14,
+      },
+      autoSave: {
+        type: Boolean,
+        default: true,
+      },
+      aiAssistance: {
+        type: Boolean,
+        default: true,
+      },
+    },
+  },
+  { timestamps: true }
+);
 
 
 userSchema.statics.hashPassword = async function(password){

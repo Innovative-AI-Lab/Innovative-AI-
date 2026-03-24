@@ -22,4 +22,11 @@ router.post('/analyze-project/:projectId',
     aiController.analyzeProject
 );
 
+router.post('/save-response',
+    authMiddleware.authUser,
+    aiController.saveResponse
+);
+
+router.get('/response/:id', aiController.getResponse);
+
 export default router;

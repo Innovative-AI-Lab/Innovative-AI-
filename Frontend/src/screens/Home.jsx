@@ -1,686 +1,528 @@
-import React, { useContext, useState, useRef, useEffect } from "react";
-import { UserContext } from "../context/user.context";
-import axios from "../config/axios";
-import { useNavigate } from "react-router-dom";
-import Dashboard from "../components/Dashboard";
+import React, { useContext, useState, useEffect, useCallback } from 'react';
+import { UserContext } from '../context/user.context';
+import axios from '../config/axios';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
-const Home = () => {
-  const { user } = useContext(UserContext);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [projectName, setProjectName] = useState(null);
-  const [project, setProject] = useState([]);
-  const [showAIDemo, setShowAIDemo] = useState(false);
-  const [showChatDemo, setShowChatDemo] = useState(false);
-  const [aiInput, setAiInput] = useState('');
-  const [aiResponse, setAiResponse] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiHistory, setAiHistory] = useState([]);
-  const [chatMessage, setChatMessage] = useState('');
-  const [chatMessages, setChatMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState(['You', 'Alice', 'Bob', 'Charlie']);
-  const projectNameRef = useRef(null);
-  const navigate = useNavigate();
+/* ─── Toast ─── */
+function Toast({ toasts }) {
+  return (
+    <div className="fixed top-5 right-5 z-[100] flex flex-col gap-2 pointer-events-none">
+      <AnimatePresence>
+        {toasts.map((t) => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity: 0, x: 60, scale: 0.92 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 60, scale: 0.92 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-xl text-sm font-semibold border
+              ${t.type === 'error'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}
+          >
+            <span>{t.type === 'error' ? '✕' : '✓'}</span>
+            {t.message}
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
 
-  function createProject(e) {
-    axios
-      .post("/projects/create", {
-        name: projectName,
-      })
-      .then((res) => {
-        console.log(res);
-        setIsModalOpen(false);
-      })
-      .catch((error) => {
-        console.log(error);
-      });
+/* ─── Skeleton Card ─── */
+function SkeletonCard() {
+  return (
+    <div className="rounded-2xl border border-indigo-100/60 p-5 animate-pulse shadow-sm" style={{ background: 'rgba(255,255,255,0.55)' }}>
+      <div className="flex justify-between mb-4">
+        <div className="w-11 h-11 rounded-xl bg-gray-200" />
+        <div className="w-14 h-5 rounded-full bg-gray-200" />
+      </div>
+      <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
+      <div className="h-3 bg-gray-100 rounded w-1/3 mb-5" />
+      <div className="flex justify-between items-center">
+        <div className="flex -space-x-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="w-7 h-7 rounded-full bg-gray-200 border-2 border-white" />
+          ))}
+        </div>
+        <div className="w-12 h-3 rounded bg-gray-200" />
+      </div>
+    </div>
+  );
+}
 
-    if (e && e.preventDefault) e.preventDefault();
-    const name = projectName.trim();
-    if (!name) {
-      // simple validation - focus the input
-      projectNameRef.current?.focus();
-      return;
-    }
-    console.log("Creating project:", name);
-    // placeholder: call API/service here
-    setIsModalOpen(false);
-    setProjectName("");
-  }
+/* ─── Project Card ─── */
+const cardGradients = [
+  { from: '#6366f1', to: '#8b5cf6', light: '#ede9fe', text: '#5b21b6' },
+  { from: '#f43f5e', to: '#ec4899', light: '#fce7f3', text: '#9d174d' },
+  { from: '#f59e0b', to: '#f97316', light: '#fef3c7', text: '#92400e' },
+  { from: '#06b6d4', to: '#0ea5e9', light: '#e0f2fe', text: '#0c4a6e' },
+  { from: '#10b981', to: '#059669', light: '#d1fae5', text: '#064e3b' },
+  { from: '#8b5cf6', to: '#6366f1', light: '#ede9fe', text: '#4c1d95' },
+];
 
-  const handleAIDemo = async () => {
-    if (!aiInput.trim()) return;
-    
-    setAiLoading(true);
-    const currentInput = aiInput;
-    setAiInput('');
-    
-    // Add to history
-    setAiHistory(prev => [...prev, { type: 'user', text: currentInput, time: new Date().toLocaleTimeString() }]);
-    
-    // Simulate AI thinking
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const responses = {
-      'create a react component': 'Here\'s a React component:\n\n```jsx\nfunction MyComponent() {\n  const [count, setCount] = useState(0);\n\n  return (\n    <div className="component">\n      <h1>Counter: {count}</h1>\n      <button onClick={() => setCount(count + 1)}>\n        Increment\n      </button>\n    </div>\n  );\n}\n\nexport default MyComponent;\n```',
-      'help with css': 'Here are advanced CSS techniques:\n\n```css\n/* Modern CSS Grid Layout */\n.grid-container {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));\n  gap: 2rem;\n}\n\n/* Glass Morphism Effect */\n.glass {\n  background: rgba(255, 255, 255, 0.1);\n  backdrop-filter: blur(10px);\n  border: 1px solid rgba(255, 255, 255, 0.2);\n}\n```',
-      'javascript function': 'Here\'s an advanced JavaScript function:\n\n```javascript\n// Async function with error handling\nasync function fetchUserData(userId) {\n  try {\n    const response = await fetch(`/api/users/${userId}`);\n    if (!response.ok) throw new Error(\'User not found\');\n    \n    const userData = await response.json();\n    return userData;\n  } catch (error) {\n    console.error(\'Error fetching user:\', error);\n    return null;\n  }\n}\n```',
-      'api design': 'RESTful API Design Best Practices:\n\n```javascript\n// Express.js API Routes\napp.get(\'/api/users\', getAllUsers);\napp.get(\'/api/users/:id\', getUserById);\napp.post(\'/api/users\', createUser);\napp.put(\'/api/users/:id\', updateUser);\napp.delete(\'/api/users/:id\', deleteUser);\n\n// Response format\n{\n  "success": true,\n  "data": {...},\n  "message": "Operation successful"\n}\n```',
-      'database query': 'MongoDB Query Examples:\n\n```javascript\n// Find with conditions\nconst users = await User.find({\n  age: { $gte: 18 },\n  status: \'active\'\n}).populate(\'profile\');\n\n// Aggregation pipeline\nconst stats = await User.aggregate([\n  { $match: { createdAt: { $gte: new Date(\'2024-01-01\') } } },\n  { $group: { _id: \'$department\', count: { $sum: 1 } } }\n]);\n```'
-    };
-    
-    const response = responses[currentInput.toLowerCase()] || `I can help you with "${currentInput}"! Here are some suggestions:\n\n• **Code Generation**: "create a react component"\n• **Styling Help**: "help with css"\n• **Functions**: "javascript function"\n• **Backend**: "api design" or "database query"\n\n💡 **Pro Tip**: Be specific about what you need, and I\'ll provide detailed code examples!`;
-    
-    setAiHistory(prev => [...prev, { type: 'ai', text: response, time: new Date().toLocaleTimeString() }]);
-    setAiLoading(false);
-  };
-  
-  const handleChatDemo = async () => {
-    if (!chatMessage.trim()) return;
-    
-    const newMessage = {
-      text: chatMessage,
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-      user: 'You',
-      avatar: (user?.name || 'U')[0].toUpperCase()
-    };
-    
-    setChatMessages(prev => [...prev, newMessage]);
-    setChatMessage('');
-    
-    // Simulate other users typing and responding
-    setIsTyping(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const responses = [
-      { text: "That's a great idea! 👍", user: 'Alice', avatar: 'A' },
-      { text: "I agree! Let's implement this feature.", user: 'Bob', avatar: 'B' },
-      { text: "Sounds good to me! When do we start?", user: 'Charlie', avatar: 'C' },
-      { text: "Perfect! I'll create the documentation.", user: 'Alice', avatar: 'A' },
-      { text: "Let me know if you need any help with the backend.", user: 'Bob', avatar: 'B' }
-    ];
-    
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    const botMessage = {
-      ...randomResponse,
-      time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-    };
-    
-    setChatMessages(prev => [...prev, botMessage]);
-    setIsTyping(false);
-  };
-
-  useEffect(() => {
-    axios
-      .get("/projects/all")
-      .then((res) => {
-        console.log(res.data.projects);
-        setProject(res.data.projects);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  }, []);
+function ProjectCard({ project, onClick, index }) {
+  const g = cardGradients[index % cardGradients.length];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50">
-      <nav className="bg-white/10 backdrop-blur-2xl border-b border-white/20 shadow-2xl sticky top-0 z-50 relative">
-        {/* Glass Background Effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5"></div>
-        <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="flex justify-between items-center h-20">
-            {/* Logo Section */}
-            <div className="flex items-center gap-4 group">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-2xl ring-2 ring-white/20 group-hover:scale-105 transition-all duration-300">
-                <i className="ri-brain-fill text-white text-2xl group-hover:rotate-12 transition-transform duration-300"></i>
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  Innovative AI
-                </h1>
-                <p className="text-xs text-gray-600/80 font-medium">Full Stack Development Platform</p>
-              </div>
-            </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay: index * 0.07 }}
+      whileHover={{ y: -5, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className="group relative rounded-2xl border border-indigo-100/70 hover:border-transparent hover:shadow-2xl p-5 cursor-pointer transition-all duration-300 overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(10px)' }}
+    >
+      {/* Top color bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-1 rounded-t-2xl"
+        style={{ background: `linear-gradient(90deg, ${g.from}, ${g.to})` }}
+      />
 
+      {/* Hover glow */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
+        style={{ background: `linear-gradient(135deg, ${g.from}08, ${g.to}05)` }}
+      />
 
-
-            {/* User Section */}
-            <div className="flex items-center gap-4">
-              {/* User Info */}
-              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl px-4 py-2 shadow-lg hover:bg-white/20 transition-all duration-300">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white font-bold shadow-xl ring-2 ring-white/30 hover:scale-105 transition-transform duration-300">
-                  {(user?.name || user?.email || 'U')[0].toUpperCase()}
-                </div>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-bold text-gray-900">
-                    {user?.name || user?.email?.split('@')[0] || 'User'}
-                  </p>
-                  <p className="text-xs text-gray-600/80 font-medium">{user?.email}</p>
-                </div>
-              </div>
-
-              {/* Logout Button */}
-              <button 
-                onClick={() => {
-                  localStorage.removeItem('token');
-                  window.location.href = '/login';
-                }}
-                className="group flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-xl border border-red-300/30 text-red-700 rounded-2xl hover:from-red-500/30 hover:to-pink-500/30 hover:border-red-400/50 transition-all duration-300 font-medium shadow-lg hover:shadow-xl hover:scale-105"
-              >
-                <i className="ri-logout-box-line text-lg group-hover:translate-x-1 transition-transform duration-300"></i>
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            </div>
-          </div>
+      <div className="flex items-start justify-between mb-4 mt-1">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform duration-200"
+          style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+        >
+          <i className="ri-folder-3-fill text-white text-lg"></i>
         </div>
-      </nav>
-      
-      {/* Hero Section */}
-      <div className="relative py-16 overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-100/50 via-purple-100/30 to-pink-100/50"></div>
-        <div className="absolute top-10 left-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl"></div>
-        
-        <div className="relative max-w-7xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-2xl shadow-2xl ring-4 ring-white/50">
-                {(user?.name || user?.email || 'U')[0].toUpperCase()}
-              </div>
-            </div>
-            <h2 className="text-5xl font-bold text-gray-900 mb-6">
-              Welcome back, <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                {user?.name || user?.email?.split('@')[0] || 'Developer'}
-              </span>!
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Build amazing projects with AI-powered assistance, real-time collaboration, and integrated development tools.
-            </p>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="group bg-white/70 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/30 hover:bg-white/80 transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <i className="ri-folder-3-fill text-white text-2xl"></i>
-                </div>
-                <div>
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{project.length}</h3>
-                  <p className="text-gray-600 font-medium">Active Projects</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="group bg-white/70 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/30 hover:bg-white/80 transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <i className="ri-robot-2-fill text-white text-2xl"></i>
-                </div>
-                <div>
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">AI</h3>
-                  <p className="text-gray-600 font-medium">Assistant Ready</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="group bg-white/70 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/30 hover:bg-white/80 transition-all duration-300 hover:scale-105">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 transition-transform duration-300">
-                  <i className="ri-team-fill text-white text-2xl"></i>
-                </div>
-                <div>
-                  <h3 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                    {project.reduce((total, p) => total + (p.users?.length || 0), 0)}
-                  </h3>
-                  <p className="text-gray-600 font-medium">Collaborators</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <span
+          className="text-[11px] px-2.5 py-1 rounded-full font-semibold"
+          style={{ background: g.light, color: g.text }}
+        >
+          Active
+        </span>
       </div>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto p-6">
-        {/* Projects Section */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Your Projects</h2>
-              <p className="text-gray-600">Manage and collaborate on your development projects</p>
+      <h3 className="text-[15px] font-bold text-gray-800 mb-1 capitalize truncate">
+        {project.name}
+      </h3>
+      <p className="text-xs text-gray-400 mb-5">
+        {project.users?.length || 0} member{project.users?.length !== 1 ? 's' : ''}
+      </p>
+
+      <div className="flex items-center justify-between">
+        <div className="flex -space-x-2">
+          {project.users?.slice(0, 4).map((u, i) => (
+            <div
+              key={i}
+              title={u.displayName || u.email}
+              className="w-7 h-7 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
+              style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+            >
+              {(u.displayName || u.email || 'U')[0].toUpperCase()}
+            </div>
+          ))}
+          {(project.users?.length || 0) > 4 && (
+            <div className="w-7 h-7 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-500">
+              +{project.users.length - 4}
+            </div>
+          )}
+        </div>
+        <span
+          className="text-xs font-semibold flex items-center gap-1 group-hover:gap-2 transition-all duration-200"
+          style={{ color: g.from }}
+        >
+          Open <i className="ri-arrow-right-line text-xs"></i>
+        </span>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ─── Create Modal ─── */
+function CreateModal({ onClose, onCreated }) {
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setError('');
+    setLoading(true);
+    axios.post('/projects/create', { name: name.trim().toLowerCase() })
+      .then(res => { onCreated(res.data); onClose(); })
+      .catch(err => setError(err.response?.data?.message || err.response?.data || 'Failed to create project'))
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.92, opacity: 0, y: 20 }}
+        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-indigo-100/60"
+        style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(20px)' }}
+      >
+        {/* Modal header gradient bar */}
+        <div className="h-1.5 w-full" style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899)' }} />
+
+        <div className="px-6 pt-5 pb-4 border-b border-indigo-100/50 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">New Project</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Name saved in lowercase automatically</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg hover:bg-indigo-50 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors border border-gray-200"
+          >
+            <i className="ri-close-line text-base"></i>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-2 uppercase tracking-widest">
+              Project Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => { setName(e.target.value); setError(''); }}
+              placeholder="e.g. my-awesome-app"
+              autoFocus
+              className="w-full px-4 py-3 rounded-xl text-sm text-gray-800 border border-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition-all placeholder-gray-300"
+              style={{ background: 'rgba(238,240,255,0.6)' }}
+            />
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="text-xs text-red-500 mt-2 flex items-center gap-1.5"
+                >
+                  <i className="ri-error-warning-line"></i> {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-indigo-600 border border-indigo-200 hover:bg-indigo-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim() || loading}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <i className="ri-loader-4-line animate-spin"></i> Creating…
+                </span>
+              ) : 'Create Project'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── Main Home ─── */
+const Home = () => {
+  const { user, setUser } = useContext(UserContext);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [fetching, setFetching] = useState(true);
+  const [toasts, setToasts] = useState([]);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const addToast = useCallback((message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+
+  /* OAuth callback */
+  useEffect(() => {
+    const token = searchParams.get('token');
+    const userStr = searchParams.get('user');
+    if (token && userStr) {
+      try {
+        const oauthUser = JSON.parse(decodeURIComponent(userStr));
+        localStorage.setItem('token', token);
+        setUser(oauthUser);
+        window.history.replaceState({}, '', '/');
+        addToast('Signed in successfully!');
+      } catch (e) { console.error(e); }
+    }
+  }, []);
+
+  /* Fetch projects */
+  useEffect(() => {
+    if (!localStorage.getItem('token')) { navigate('/login'); return; }
+    setFetching(true);
+    axios.get('/projects/all')
+      .then(res => setProjects(res.data.projects || []))
+      .catch(() => addToast('Failed to load projects.', 'error'))
+      .finally(() => setFetching(false));
+  }, [user]);
+
+  const handleProjectCreated = (newProject) => {
+    setProjects(prev => [...prev, newProject]);
+    addToast(`Project "${newProject.name}" created!`);
+  };
+
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Developer';
+  const totalMembers = projects.reduce((t, p) => t + (p.users?.length || 0), 0);
+
+  const stats = [
+    {
+      label: 'Total Projects',
+      value: projects.length,
+      icon: 'ri-folder-3-fill',
+      gradient: 'from-indigo-500 to-violet-500',
+      bg: 'bg-indigo-50',
+      iconColor: 'text-indigo-600',
+      border: 'border-indigo-100',
+    },
+    {
+      label: 'Collaborators',
+      value: totalMembers,
+      icon: 'ri-team-fill',
+      gradient: 'from-pink-500 to-rose-500',
+      bg: 'bg-pink-50',
+      iconColor: 'text-pink-600',
+      border: 'border-pink-100',
+    },
+    {
+      label: 'AI Status',
+      value: 'Online',
+      icon: 'ri-robot-2-fill',
+      gradient: 'from-emerald-500 to-teal-500',
+      bg: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      border: 'border-emerald-100',
+      isOnline: true,
+    },
+  ];
+
+  const features = [
+    { icon: 'ri-robot-2-fill', title: 'AI Assistant', desc: 'Intelligent code generation & answers', color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100' },
+    { icon: 'ri-code-s-slash-fill', title: 'Code Editor', desc: 'Syntax highlighting, multi-language', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100' },
+    { icon: 'ri-message-3-fill', title: 'Team Chat', desc: 'Real-time collaboration', color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+    { icon: 'ri-terminal-box-fill', title: 'Terminal', desc: 'Integrated shell & commands', color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-100' },
+  ];
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: 'linear-gradient(135deg, #eef0ff 0%, #f3eeff 40%, #fce8f6 70%, #ede9fe 100%)' }}>
+
+      {/* Decorative blobs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden>
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-40"
+          style={{ background: 'radial-gradient(circle, #a78bfa 0%, transparent 70%)' }} />
+        <div className="absolute top-1/3 -right-24 w-80 h-80 rounded-full opacity-30"
+          style={{ background: 'radial-gradient(circle, #ec4899 0%, transparent 70%)' }} />
+        <div className="absolute -bottom-20 left-1/3 w-72 h-72 rounded-full opacity-25"
+          style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }} />
+      </div>
+
+      <Header />
+
+      <main className="flex-1 relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Welcome Banner ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="relative mb-8 rounded-3xl overflow-hidden shadow-xl"
+        >
+          {/* Gradient background */}
+          <div className="absolute inset-0" style={{
+            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 35%, #a21caf 65%, #db2777 100%)'
+          }} />
+          {/* Shine overlay */}
+          <div className="absolute inset-0 opacity-20"
+            style={{ background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)' }} />
+          {/* Decorative circles */}
+          <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/10" />
+          <div className="absolute -bottom-8 -left-8 w-36 h-36 rounded-full bg-white/10" />
+
+          <div className="relative px-6 py-7 sm:px-8 sm:py-8 flex flex-col sm:flex-row sm:items-center gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-white/25 backdrop-blur-sm border border-white/30 flex items-center justify-center text-2xl font-bold text-white flex-shrink-0 shadow-lg">
+              {displayName[0].toUpperCase()}
+            </div>
+            <div className="flex-1">
+              <p className="text-white/70 text-xs font-semibold uppercase tracking-widest mb-1">Welcome back 👋</p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight">{displayName}</h1>
+              <p className="text-white/70 text-sm mt-1">Ready to build something extraordinary today?</p>
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all flex-shrink-0 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 border border-white/30"
+              style={{ background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(8px)', color: '#fff' }}
             >
-              <i className="ri-add-line text-lg"></i>
-              <span>New Project</span>
+              <i className="ri-add-line text-base"></i>
+              New Project
             </button>
           </div>
-          
-          {/* Projects Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {project.length === 0 ? (
-              <div className="col-span-full">
-                <div className="text-center py-12 bg-white/50 rounded-2xl border-2 border-dashed border-gray-300">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="ri-folder-add-line text-2xl text-gray-400"></i>
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-700 mb-2">No projects yet</h3>
-                  <p className="text-gray-500 mb-4">Create your first project to get started</p>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-lg font-medium"
-                  >
-                    Create Project
-                  </button>
-                </div>
+        </motion.div>
+
+        {/* ── Stats ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
+        >
+          {stats.map((s, i) => (
+            <div
+              key={i}
+              className={`rounded-2xl border ${s.border} px-5 py-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow`}
+              style={{ background: 'rgba(255,255,255,0.60)', backdropFilter: 'blur(12px)' }}
+            >
+              <div className={`w-12 h-12 ${s.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                <i className={`${s.icon} text-xl ${s.iconColor}`}></i>
               </div>
-            ) : (
-              project.map((proj) => (
-                <div
-                  key={proj._id}
-                  onClick={() => {
-                    navigate(`/project/${proj._id}`, {
-                      state: { project: proj },
-                    });
-                  }}
-                  className="group cursor-pointer bg-white/60 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/30 hover:bg-white/80 transition-all duration-500 transform hover:-translate-y-2 hover:shadow-3xl hover:border-blue-300/50"
-                >
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-                      <i className="ri-folder-3-fill text-white text-2xl"></i>
-                    </div>
-                    <div className="opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-x-2 group-hover:translate-x-0">
-                      <i className="ri-arrow-right-line text-blue-500 text-2xl"></i>
-                    </div>
+              <div>
+                {s.isOnline ? (
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    <p className="text-xl font-extrabold text-gray-800">{s.value}</p>
                   </div>
-                  
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-purple-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">
-                    {proj.name}
-                  </h3>
-                  
-                  <div className="flex items-center gap-6 text-sm text-gray-600 mb-6">
-                    <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full">
-                      <i className="ri-team-fill text-blue-500"></i>
-                      <span className="font-medium">{proj.users?.length || 0} collaborators</span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span className="font-medium text-green-700">Active</span>
-                    </div>
-                  </div>
-                  
-                  {/* Enhanced Collaborators Avatars */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex -space-x-3">
-                        {proj.users?.slice(0, 4).map((projectUser, index) => {
-                          const colors = [
-                            'from-blue-500 to-cyan-500',
-                            'from-purple-500 to-pink-500', 
-                            'from-emerald-500 to-teal-500',
-                            'from-orange-500 to-red-500'
-                          ];
-                          return (
-                            <div
-                              key={index}
-                              className={`w-10 h-10 bg-gradient-to-r ${colors[index % colors.length]} rounded-full flex items-center justify-center text-white text-sm font-bold border-3 border-white shadow-lg hover:scale-110 transition-transform duration-200 relative group/avatar`}
-                              title={projectUser.name || projectUser.email}
-                            >
-                              {(projectUser.name || projectUser.email || 'U')[0].toUpperCase()}
-                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                                {projectUser.name || projectUser.email?.split('@')[0] || 'User'}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {(proj.users?.length || 0) > 4 && (
-                          <div className="w-10 h-10 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center text-white text-sm font-bold border-3 border-white shadow-lg">
-                            +{(proj.users?.length || 0) - 4}
-                          </div>
-                        )}
-                      </div>
-                      {(proj.users?.length || 0) === 0 && (
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <i className="ri-user-add-line"></i>
-                          <span className="text-sm font-medium">No collaborators yet</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-full text-sm font-medium shadow-lg">
-                        Open Project
-                      </div>
-                    </div>
-                  </div>
+                ) : (
+                  <p className="text-2xl font-extrabold text-gray-800">{s.value}</p>
+                )}
+                <p className="text-xs text-gray-400 font-medium mt-0.5">{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* ── Projects Section ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.18 }}
+          className="rounded-3xl border border-indigo-100/60 shadow-sm overflow-hidden mb-6"
+          style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(16px)' }}
+        >
+          {/* Section header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-indigo-100/50">
+            <div>
+              <h2 className="text-base font-bold text-gray-800">Your Projects</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Click any project to open workspace</p>
+            </div>
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:translate-y-0"
+              style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+            >
+              <i className="ri-add-line"></i> New Project
+            </button>
+          </div>
+
+          <div className="p-6">
+            {fetching ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
+              </div>
+            ) : projects.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col items-center justify-center py-20 text-center"
+              >
+                <div className="w-20 h-20 rounded-3xl border border-indigo-200/60 flex items-center justify-center mb-5 shadow-sm" style={{ background: 'rgba(99,102,241,0.10)' }}>
+                  <i className="ri-folder-add-line text-3xl text-indigo-400"></i>
                 </div>
-              ))
+                <h3 className="text-base font-bold text-gray-700 mb-2">No projects yet</h3>
+                <p className="text-sm text-gray-400 mb-6 max-w-xs">
+                  Create your first project and start collaborating with your team.
+                </p>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all"
+                  style={{ background: 'linear-gradient(135deg, #4f46e5, #7c3aed)' }}
+                >
+                  Create your first project
+                </button>
+              </motion.div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {projects.map((project, i) => (
+                  <ProjectCard
+                    key={project._id}
+                    project={project}
+                    index={i}
+                    onClick={() => navigate(`/project/${project._id}`, { state: { project } })}
+                  />
+                ))}
+              </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Features Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* AI Assistant Card */}
-          <div className="group bg-white/60 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl hover:bg-white/80 transition-all duration-500 hover:scale-105 cursor-pointer" onClick={() => setShowAIDemo(true)}>
-            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-              <i className="ri-robot-2-line text-white text-2xl"></i>
+        {/* ── Feature Cards ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.26 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        >
+          {features.map((f, i) => (
+            <div
+              key={i}
+              className={`rounded-2xl border ${f.border} px-4 py-5 hover:shadow-md transition-all duration-200 hover:-translate-y-1 cursor-default`}
+              style={{ background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(12px)' }}
+            >
+              <div className={`w-10 h-10 ${f.bg} rounded-xl flex items-center justify-center mb-3`}>
+                <i className={`${f.icon} text-lg ${f.color}`}></i>
+              </div>
+              <h3 className="text-sm font-bold text-gray-800 mb-1">{f.title}</h3>
+              <p className="text-xs text-gray-400 leading-relaxed">{f.desc}</p>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">AI Assistant</h3>
-            <p className="text-gray-600 leading-relaxed mb-4">Intelligent code generation and help with advanced AI capabilities</p>
-            <div className="flex items-center gap-2 text-purple-600 font-medium">
-              <i className="ri-play-circle-line"></i>
-              <span>Try AI Assistant</span>
-            </div>
-          </div>
-          
-          {/* Real-time Chat Card */}
-          <div className="group bg-white/60 backdrop-blur-xl rounded-3xl p-8 border border-white/30 shadow-2xl hover:bg-white/80 transition-all duration-500 hover:scale-105 cursor-pointer" onClick={() => setShowChatDemo(true)}>
-            <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center mb-6 shadow-xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
-              <i className="ri-message-3-line text-white text-2xl"></i>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:bg-gradient-to-r group-hover:from-emerald-600 group-hover:to-teal-600 group-hover:bg-clip-text group-hover:text-transparent transition-all duration-300">Real-time Chat</h3>
-            <p className="text-gray-600 leading-relaxed mb-4">Collaborate with team members instantly with seamless communication</p>
-            <div className="flex items-center gap-2 text-emerald-600 font-medium">
-              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-              <span>Start Chatting</span>
-            </div>
-          </div>
-        </div>
+          ))}
+        </motion.div>
+
       </main>
 
-      {/* Modern Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setIsModalOpen(false)}
-            aria-hidden="true"
+      <Footer />
+
+      {/* Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <CreateModal
+            onClose={() => setIsModalOpen(false)}
+            onCreated={handleProjectCreated}
           />
+        )}
+      </AnimatePresence>
 
-          {/* modal panel */}
-          <div className="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
-            <form onSubmit={createProject}>
-              {/* Header */}
-              <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-t-3xl p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <i className="ri-folder-add-line text-xl"></i>
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold">Create New Project</h3>
-                      <p className="text-blue-100 text-sm">Start building something amazing</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-all duration-200"
-                    aria-label="Close modal"
-                  >
-                    <i className="ri-close-fill text-xl"></i>
-                  </button>
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-6">
-                <label className="block">
-                  <span className="text-sm font-semibold text-gray-700 mb-2 block">Project Name</span>
-                  <input
-                    ref={projectNameRef}
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    className="w-full px-4 py-3 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm placeholder-gray-500 text-gray-800"
-                    placeholder="Enter project name..."
-                    aria-label="Project name"
-                  />
-                </label>
-
-                <div className="mt-6 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium"
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
-                  >
-                    Create Project
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      
-      {/* AI Assistant Demo Modal */}
-      {showAIDemo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAIDemo(false)}></div>
-          <div className="relative w-full max-w-2xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-3xl p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <i className="ri-robot-2-fill text-xl"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">AI Assistant Demo</h3>
-                    <p className="text-purple-100 text-sm">Try our intelligent AI assistant</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowAIDemo(false)} className="p-2 hover:bg-white/10 rounded-lg transition-all duration-200">
-                  <i className="ri-close-fill text-xl"></i>
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {/* Quick Suggestions */}
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-600 mb-2">Quick suggestions:</p>
-                <div className="flex flex-wrap gap-2">
-                  {['create a react component', 'help with css', 'javascript function', 'api design', 'database query'].map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => setAiInput(suggestion)}
-                      className="px-3 py-1 bg-purple-100 text-purple-700 rounded-lg text-sm hover:bg-purple-200 transition-colors"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Chat History */}
-              <div className="h-64 bg-gray-50 rounded-xl p-4 mb-4 overflow-y-auto">
-                {aiHistory.length === 0 ? (
-                  <div className="text-center text-gray-500 mt-20">
-                    <i className="ri-robot-2-line text-4xl mb-2"></i>
-                    <p>Ask me anything about coding!</p>
-                  </div>
-                ) : (
-                  aiHistory.map((item, index) => (
-                    <div key={index} className={`mb-4 ${item.type === 'user' ? 'text-right' : 'text-left'}`}>
-                      <div className={`inline-block max-w-[80%] p-3 rounded-xl ${
-                        item.type === 'user' 
-                          ? 'bg-purple-500 text-white' 
-                          : 'bg-white border border-gray-200'
-                      }`}>
-                        <div className="text-xs opacity-70 mb-1">
-                          {item.type === 'user' ? 'You' : '🤖 AI Assistant'} • {item.time}
-                        </div>
-                        <div className="whitespace-pre-wrap text-sm">{item.text}</div>
-                      </div>
-                    </div>
-                  ))
-                )}
-                {aiLoading && (
-                  <div className="text-left mb-4">
-                    <div className="inline-block bg-white border border-gray-200 p-3 rounded-xl">
-                      <div className="flex items-center gap-2">
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                          <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                        </div>
-                        <span className="text-sm text-gray-600">AI is thinking...</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex gap-3">
-                <input
-                  className="flex-1 px-4 py-3 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500"
-                  placeholder="Ask AI anything..."
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !aiLoading && handleAIDemo()}
-                  disabled={aiLoading}
-                />
-                <button
-                  onClick={handleAIDemo}
-                  disabled={aiLoading || !aiInput.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 font-medium disabled:opacity-50"
-                >
-                  {aiLoading ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-send-plane-2-fill"></i>}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Chat Demo Modal */}
-      {showChatDemo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowChatDemo(false)}></div>
-          <div className="relative w-full max-w-2xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20">
-            <div className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-t-3xl p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                    <i className="ri-message-3-fill text-xl"></i>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">Real-time Chat Demo</h3>
-                    <p className="text-emerald-100 text-sm">Experience instant messaging</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowChatDemo(false)} className="p-2 hover:bg-white/10 rounded-lg transition-all duration-200">
-                  <i className="ri-close-fill text-xl"></i>
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              {/* Online Users */}
-              <div className="mb-4">
-                <p className="text-sm font-medium text-gray-600 mb-2">Online now ({onlineUsers.length}):</p>
-                <div className="flex gap-2">
-                  {onlineUsers.map((userName, index) => (
-                    <div key={index} className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs">
-                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                      <span>{userName}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="h-64 bg-gray-50 rounded-xl p-4 mb-4 overflow-y-auto">
-                {chatMessages.length === 0 ? (
-                  <div className="text-center text-gray-500 mt-16">
-                    <i className="ri-chat-3-line text-4xl mb-2"></i>
-                    <p>Start a conversation with your team!</p>
-                    <p className="text-xs mt-1">Try saying "Hello everyone!"</p>
-                  </div>
-                ) : (
-                  chatMessages.map((msg, index) => (
-                    <div key={index} className={`mb-3 ${msg.user === 'You' ? 'text-right' : 'text-left'}`}>
-                      <div className="flex items-center gap-2 mb-1 justify-start">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${
-                          msg.user === 'You' ? 'bg-gradient-to-r from-blue-500 to-purple-500' :
-                          msg.user === 'Alice' ? 'bg-gradient-to-r from-pink-500 to-rose-500' :
-                          msg.user === 'Bob' ? 'bg-gradient-to-r from-emerald-500 to-teal-500' :
-                          'bg-gradient-to-r from-orange-500 to-red-500'
-                        }`}>
-                          {msg.avatar}
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">{msg.user}</span>
-                        <span className="text-xs text-gray-500">{msg.time}</span>
-                      </div>
-                      <div className={`inline-block px-3 py-2 rounded-lg ml-8 max-w-[80%] ${
-                        msg.user === 'You' 
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-white border border-gray-200 text-gray-800'
-                      }`}>
-                        {msg.text}
-                      </div>
-                    </div>
-                  ))
-                )}
-                {isTyping && (
-                  <div className="text-left mb-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-6 h-6 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                        <i className="ri-more-fill"></i>
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">Someone</span>
-                    </div>
-                    <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg ml-8 inline-block">
-                      <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex gap-3">
-                <input
-                  className="flex-1 px-4 py-3 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-500"
-                  placeholder="Type your message..."
-                  value={chatMessage}
-                  onChange={(e) => setChatMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !isTyping && handleChatDemo()}
-                  disabled={isTyping}
-                />
-                <button
-                  onClick={handleChatDemo}
-                  disabled={isTyping || !chatMessage.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:from-emerald-600 hover:to-teal-600 transition-all duration-200 font-medium disabled:opacity-50"
-                >
-                  {isTyping ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-send-plane-2-fill"></i>}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Settings Button - Bottom Left */}
-      <div className="fixed bottom-6 left-6 z-40">
-        <a href="/settings" className="group flex items-center gap-3 px-6 py-4 bg-white/10 backdrop-blur-2xl border border-white/30 rounded-2xl text-gray-700 hover:bg-white/20 hover:text-purple-600 transition-all duration-300 font-medium shadow-2xl hover:shadow-3xl hover:scale-105">
-          <i className="ri-settings-3-line text-xl group-hover:rotate-90 transition-transform duration-300"></i>
-          <span className="font-semibold">Settings</span>
-        </a>
-      </div>
+      {/* Toasts */}
+      <Toast toasts={toasts} />
     </div>
   );
 };

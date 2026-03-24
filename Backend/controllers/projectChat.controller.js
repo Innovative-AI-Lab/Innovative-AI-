@@ -29,7 +29,7 @@ export const sendProjectMessage = async (req, res) => {
         await chatMessage.save();
         
         // Populate sender info for response
-        await chatMessage.populate('sender', 'name email');
+        await chatMessage.populate('sender', 'displayName email');
 
         res.status(201).json({
             success: true,
@@ -48,7 +48,7 @@ export const getProjectMessages = async (req, res) => {
         const { projectId } = req.params;
 
         const messages = await ProjectChat.find({ projectId })
-            .populate('sender', 'name email')
+            .populate('sender', 'displayName email')
             .sort({ timestamp: 1 })
             .limit(100);
 

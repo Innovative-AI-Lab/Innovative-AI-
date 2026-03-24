@@ -13,8 +13,7 @@ const OAuthCallback = () => {
     const error = searchParams.get('error');
 
     if (error) {
-      alert('Authentication failed. Please try again.');
-      navigate('/login');
+      navigate('/login?error=' + error);
       return;
     }
 
@@ -25,23 +24,23 @@ const OAuthCallback = () => {
         setUser(user);
         navigate('/');
       } catch (err) {
-        console.error('Error parsing user data:', err);
+        console.error('OAuth parse error:', err);
         navigate('/login');
       }
     } else {
       navigate('/login');
     }
-  }, [searchParams, navigate, setUser]);
+  }, []);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 flex items-center justify-center">
-      <div className="bg-white/30 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-black">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 flex flex-col items-center gap-4 border border-gray-100 dark:border-gray-700">
+        <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg">
+          <i className="ri-loader-4-line animate-spin text-white text-2xl"></i>
+        </div>
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i className="ri-loader-4-line animate-spin text-white text-2xl"></i>
-          </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">Authenticating...</h2>
-          <p className="text-gray-600">Please wait while we sign you in.</p>
+          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Authenticating...</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Please wait while we sign you in.</p>
         </div>
       </div>
     </div>

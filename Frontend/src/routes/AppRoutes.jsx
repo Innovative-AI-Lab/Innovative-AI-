@@ -6,6 +6,7 @@ import Home from "../screens/Home";
 import Project from "../screens/Project";
 import Settings from "../screens/Settings";
 import OAuthCallback from "../components/OAuthCallback";
+import AIResponsePage from "../screens/AIResponsePage";
 
 const AppRoutes = () => {
   return (
@@ -17,6 +18,7 @@ const AppRoutes = () => {
         <Route path="/project" element={<Project/>} />
         <Route path="/project/:projectId" element={<Project/>} />
         <Route path="/settings" element={<Settings/>} />
+        <Route path="/ai-response/:id" element={<AIResponsePage/>} />
         <Route path="/auth/google/callback" element={<OAuthCallback/>} />
         <Route path="/auth/github/callback" element={<OAuthCallback/>} />
       </Routes>

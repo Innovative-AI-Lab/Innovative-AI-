@@ -1,179 +1,159 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+
+const defaultCode = {
+  js: `// JavaScript File\nconsole.log('Hello, World!');\n\nfunction greet(name) {\n    return \`Hello, \${name}!\`;\n}\n\nexport default greet;`,
+  jsx: `// React Component\nimport React, { useState } from 'react';\n\nconst MyComponent = () => {\n    const [count, setCount] = useState(0);\n\n    return (\n        <div>\n            <h1>Count: {count}</h1>\n            <button onClick={() => setCount(c => c + 1)}>Increment</button>\n        </div>\n    );\n};\n\nexport default MyComponent;`,
+  html: `<!DOCTYPE html>\n<html lang="en">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Document</title>\n</head>\n<body>\n    <h1>Hello, World!</h1>\n</body>\n</html>`,
+  css: `/* Styles */\nbody {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n    background: #f5f5f5;\n}\n\n.container {\n    max-width: 1200px;\n    margin: 0 auto;\n}`,
+  json: `{\n  "name": "project",\n  "version": "1.0.0",\n  "description": "A sample project",\n  "scripts": {\n    "start": "node index.js",\n    "dev": "nodemon index.js"\n  }\n}`,
+  md: `# Project Title\n\nA brief description of the project.\n\n## Features\n\n- Feature 1\n- Feature 2\n\n## Usage\n\n\`\`\`bash\nnpm install\nnpm start\n\`\`\``,
+  py: `# Python Script\n\ndef greet(name: str) -> str:\n    return f"Hello, {name}!"\n\nif __name__ == "__main__":\n    print(greet("World"))`,
+};
+
+const getLanguage = (fileName) => {
+  if (!fileName) return 'txt';
+  return fileName.split('.').pop().toLowerCase();
+};
 
 const CodeEditor = ({ selectedFile }) => {
-    const [code, setCode] = useState(selectedFile ? getDefaultCode(selectedFile.name) : '// Select a file to start editing');
-    const [fontSize, setFontSize] = useState(14);
+  const lang = getLanguage(selectedFile?.name);
+  const [code, setCode] = useState(defaultCode[lang] || `// ${selectedFile?.name || 'New File'}\n// Start coding here...`);
+  const [fontSize, setFontSize] = useState(14);
+  const [saved, setSaved] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const textareaRef = useRef(null);
+  const lineNumbersRef = useRef(null);
 
-    function getDefaultCode(fileName) {
-        const extension = fileName.split('.').pop().toLowerCase();
-        
-        switch (extension) {
-            case 'js':
-            case 'jsx':
-                return `// ${fileName}
-console.log('Hello, World!');
+  useEffect(() => {
+    const lang = getLanguage(selectedFile?.name);
+    setCode(defaultCode[lang] || `// ${selectedFile?.name || 'New File'}\n// Start coding here...`);
+    setSaved(false);
+  }, [selectedFile?.name]);
 
-function example() {
-    return 'This is a JavaScript file';
-}
+  const lines = code.split('\n');
 
-export default example;`;
-            case 'html':
-                return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <h1>Hello, World!</h1>
-</body>
-</html>`;
-            case 'css':
-                return `/* ${fileName} */
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 20px;
-    background-color: #f5f5f5;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-}`;
-            case 'json':
-                return `{
-  "name": "project",
-  "version": "1.0.0",
-  "description": "A sample project",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  }
-}`;
-            case 'md':
-                return `# ${fileName.replace('.md', '')}
-
-This is a markdown file.
-
-## Features
-
-- Feature 1
-- Feature 2
-- Feature 3
-
-## Usage
-
-\`\`\`javascript
-console.log('Hello, World!');
-\`\`\``;
-            default:
-                return `// ${fileName}
-// Start editing your file here...`;
-        }
+  const handleScroll = () => {
+    if (lineNumbersRef.current && textareaRef.current) {
+      lineNumbersRef.current.scrollTop = textareaRef.current.scrollTop;
     }
+  };
 
-    const saveFile = () => {
-        // Mock save functionality
-        console.log('Saving file:', selectedFile?.name, code);
-        alert('File saved successfully!');
-    };
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
 
-    const formatCode = () => {
-        // Simple code formatting (mock)
-        const formatted = code
-            .split('\n')
-            .map(line => line.trim())
-            .join('\n');
-        setCode(formatted);
-    };
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
-    return (
-        <div className="flex flex-col h-full bg-white">
-            {/* Editor Header */}
-            <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-gray-50">
-                <div className="flex items-center space-x-4">
-                    <span className="text-sm font-medium text-gray-700">
-                        {selectedFile ? selectedFile.name : 'No file selected'}
-                    </span>
-                    {selectedFile && (
-                        <span className="text-xs text-gray-500">
-                            {selectedFile.size}
-                        </span>
-                    )}
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-1">
-                        <label className="text-xs text-gray-600">Size:</label>
-                        <select
-                            value={fontSize}
-                            onChange={(e) => setFontSize(Number(e.target.value))}
-                            className="text-xs border border-gray-300 rounded px-1 py-0.5"
-                        >
-                            <option value={12}>12px</option>
-                            <option value={14}>14px</option>
-                            <option value={16}>16px</option>
-                            <option value={18}>18px</option>
-                        </select>
-                    </div>
-                    
-                    <button
-                        onClick={formatCode}
-                        className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                        title="Format code"
-                    >
-                        <i className="ri-code-s-slash-fill"></i>
-                    </button>
-                    
-                    <button
-                        onClick={saveFile}
-                        className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                        title="Save file"
-                    >
-                        <i className="ri-save-fill mr-1"></i>
-                        Save
-                    </button>
-                </div>
-            </div>
+  const handleKeyDown = (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = e.target.selectionStart;
+      const end = e.target.selectionEnd;
+      const newCode = code.substring(0, start) + '    ' + code.substring(end);
+      setCode(newCode);
+      setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = start + 4; }, 0);
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleSave();
+    }
+  };
 
-            {/* Code Editor */}
-            <div className="flex-1 relative">
-                <textarea
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    className="w-full h-full p-4 font-mono resize-none border-none outline-none"
-                    style={{ fontSize: `${fontSize}px` }}
-                    placeholder="Start typing your code here..."
-                    spellCheck={false}
-                />
-                
-                {/* Line numbers (simplified) */}
-                <div className="absolute left-0 top-0 p-4 pointer-events-none text-gray-400 font-mono select-none" style={{ fontSize: `${fontSize}px` }}>
-                    {code.split('\n').map((_, index) => (
-                        <div key={index} className="leading-6">
-                            {index + 1}
-                        </div>
-                    ))}
-                </div>
-            </div>
+  const langLabels = { js: 'JavaScript', jsx: 'React JSX', ts: 'TypeScript', tsx: 'React TSX', css: 'CSS', html: 'HTML', json: 'JSON', md: 'Markdown', py: 'Python' };
 
-            {/* Status Bar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-600">
-                <div className="flex items-center space-x-4">
-                    <span>Lines: {code.split('\n').length}</span>
-                    <span>Characters: {code.length}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <span>UTF-8</span>
-                    <span>•</span>
-                    <span>{selectedFile?.name.split('.').pop().toUpperCase() || 'TEXT'}</span>
-                </div>
-            </div>
+  return (
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+      {/* Toolbar */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-full bg-red-400"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+            <div className="w-3 h-3 rounded-full bg-green-400"></div>
+          </div>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+            {selectedFile?.name || 'untitled.js'}
+          </span>
+          <span className="hidden sm:inline text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+            {langLabels[lang] || lang.toUpperCase()}
+          </span>
         </div>
-    );
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <select
+            value={fontSize}
+            onChange={e => setFontSize(Number(e.target.value))}
+            className="text-xs border border-gray-200 dark:border-gray-600 rounded-lg px-2 py-1 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 focus:outline-none"
+          >
+            {[12, 13, 14, 15, 16, 18].map(s => <option key={s} value={s}>{s}px</option>)}
+          </select>
+
+          <button onClick={handleCopy} className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg transition-colors ${copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+            <i className={copied ? 'ri-check-line' : 'ri-file-copy-line'}></i>
+            <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy'}</span>
+          </button>
+
+          <button onClick={handleSave} className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg transition-colors ${saved ? 'bg-green-500 text-white' : 'bg-blue-500 text-white hover:bg-blue-600'}`}>
+            <i className={saved ? 'ri-check-line' : 'ri-save-line'}></i>
+            <span className="hidden sm:inline">{saved ? 'Saved!' : 'Save'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Editor Area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Line Numbers */}
+        <div
+          ref={lineNumbersRef}
+          className="flex-shrink-0 w-10 sm:w-12 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-hidden select-none"
+          style={{ fontSize: `${fontSize}px`, lineHeight: '1.6' }}
+        >
+          <div className="p-2 sm:p-3 text-right">
+            {lines.map((_, i) => (
+              <div key={i} className="text-gray-400 dark:text-gray-600 leading-relaxed" style={{ fontSize: `${Math.max(fontSize - 2, 10)}px` }}>
+                {i + 1}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={code}
+          onChange={e => setCode(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onScroll={handleScroll}
+          className="flex-1 p-2 sm:p-3 font-mono resize-none border-none outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 leading-relaxed"
+          style={{ fontSize: `${fontSize}px`, lineHeight: '1.6', tabSize: 4 }}
+          spellCheck={false}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+        />
+      </div>
+
+      {/* Status Bar */}
+      <div className="flex-shrink-0 flex items-center justify-between px-4 py-1.5 bg-blue-600 text-white text-xs">
+        <div className="flex items-center gap-4">
+          <span>Ln {code.substring(0, code.length).split('\n').length}</span>
+          <span>Col {code.length}</span>
+          <span>{lines.length} lines</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span>UTF-8</span>
+          <span>{langLabels[lang] || lang.toUpperCase()}</span>
+          {saved && <span className="flex items-center gap-1"><i className="ri-check-line"></i>Saved</span>}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default CodeEditor;

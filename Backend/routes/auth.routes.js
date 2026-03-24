@@ -42,20 +42,18 @@ router.get('/google/callback', async (req, res) => {
         let user = await User.findOne({ email });
         
         if (!user) {
-            // Create new user
             user = await User.create({
-                name,
+                displayName: name,
                 email,
-                password: 'google_oauth', // Placeholder password
-                avatar: picture
+                photoURL: picture
             });
         }
 
         // Generate JWT token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+        const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
         // Redirect to frontend with token
-        res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+        res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify({ _id: user._id, email: user.email, displayName: user.displayName }))}`);
     } catch (error) {
         console.error('Google OAuth error:', error);
         res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
@@ -94,24 +92,26 @@ router.get('/github/callback', async (req, res) => {
             userEmail = emailResponse.data.find(e => e.primary)?.email;
         }
 
+        if (!userEmail) {
+            return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
+        }
+
         // Check if user exists
         let user = await User.findOne({ email: userEmail });
         
         if (!user) {
-            // Create new user
             user = await User.create({
-                name: name || login,
+                displayName: name || login,
                 email: userEmail,
-                password: 'github_oauth', // Placeholder password
-                avatar: avatar_url
+                photoURL: avatar_url
             });
         }
 
         // Generate JWT token
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+        const token = jwt.sign({ email: user.email }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
         // Redirect to frontend with token
-        res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify(user))}`);
+        res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify({ _id: user._id, email: user.email, displayName: user.displayName }))}`);
     } catch (error) {
         console.error('GitHub OAuth error:', error);
         res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);

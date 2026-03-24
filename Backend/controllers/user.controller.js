@@ -12,8 +12,8 @@ export const createUserController = async (req, res) => {
     }
 
     try{
-        const { name, email, password } = req.body;
-        const user = await userService.createUser({ name, email, password });
+        const { displayName, email, password } = req.body;
+        const user = await userService.createUser({ displayName, email, password });
 
         const token = await user.generateJWT();
 
@@ -21,7 +21,10 @@ export const createUserController = async (req, res) => {
 
         res.status(201).json({user, token});
     }catch(error){
-        res.status(400).send(error.message);
+        if (error.code === 11000) {
+            return res.status(409).json({ error: 'Email already registered' });
+        }
+        res.status(400).json({ error: error.message });
     }
 }
 
@@ -53,14 +56,13 @@ export const loginUserController = async (req, res) => {
         res.status(200).json({ user, token });
 
     } catch (err) {
-        res.status(400).send(err.message);
+        res.status(400).json({ error: err.message });
     }
 }
 
 export const profileController = async (req, res) => {
-    console.log(req.user);
-
-    res.status(200).json({ user: req.user });
+    const user = await userModel.findById(req.user._id).select('-password');
+    res.status(200).json({ user });
 }
 
 export const logoutController = async (req, res) => {
@@ -68,7 +70,7 @@ export const logoutController = async (req, res) => {
         const token = req.cookies.token || req.headers.authorization?.split(" ")[1];
         
         if (token) {
-            blacklistToken(token);
+            await blacklistToken(token);
         }
         
         res.clearCookie('token');
@@ -78,6 +80,39 @@ export const logoutController = async (req, res) => {
         res.status(400).send(err.message);
     }
 }
+
+
+export const updateProfileController = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const updatedUser = await userService.updateUserProfile(userId, req.body);
+        const userObj = updatedUser.toObject();
+        delete userObj.password;
+        res.status(200).json({ user: userObj, message: 'Profile updated successfully' });
+    } catch (error) {
+        console.error('updateProfile error:', error);
+        res.status(400).json({ message: error.message });
+    }
+};
+
+export const updatePasswordController = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current and new passwords are required.' });
+        }
+        if (newPassword.length < 3) {
+            return res.status(400).json({ message: 'New password must be at least 3 characters.' });
+        }
+
+        await userService.updateUserPassword(userId, currentPassword, newPassword);
+        res.status(200).json({ message: 'Password updated successfully' });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+};
 
 export const getAllUsersController = async (req, res) => {
     try {
