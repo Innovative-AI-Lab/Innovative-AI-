@@ -10,6 +10,10 @@ async function connect() {
     await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      family: 4
     });
     console.log(`✅ MongoDB connected — DB: ${mongoose.connection.name}`);
   } catch (err) {
@@ -19,6 +23,7 @@ async function connect() {
 
   mongoose.connection.on('disconnected', () => console.warn('⚠️  MongoDB disconnected'));
   mongoose.connection.on('error', (err) => console.error('❌ MongoDB error:', err.message));
+  mongoose.connection.on('reconnected', () => console.log('🔄 MongoDB reconnected'));
 }
 
 export default connect;

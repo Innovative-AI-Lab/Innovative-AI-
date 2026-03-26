@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import bcrypt from "bcryptjs"; 
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
 const userSchema = new mongoose.Schema(
@@ -17,12 +17,13 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      select: false,
+      required: true,
+      select: false, // important for security
     },
     bio: {
       type: String,
       trim: true,
-      maxLength: [250, 'Bio should be at most 250 characters long'],
+      maxLength: [250, "Bio max 250 chars"],
     },
     photoURL: {
       type: String,
@@ -31,7 +32,7 @@ const userSchema = new mongoose.Schema(
     settings: {
       theme: {
         type: String,
-        default: 'light',
+        default: "light",
       },
       fontSize: {
         type: Number,
@@ -50,23 +51,51 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// ================= HASH PASSWORD =================
+userSchema.pre("save", async function (next) {
+  try {
+    if (!this.isModified("password")) return next();
 
-userSchema.statics.hashPassword = async function(password){
-    return await bcrypt.hash(password, 10);
-}
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
 
-userSchema.methods.isValidPassword = async function(password){
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ================= PASSWORD CHECK =================
+userSchema.methods.isValidPassword = async function (password) {
+  try {
+    if (!this.password) return false;
     return await bcrypt.compare(password, this.password);
-}
+  } catch (err) {
+    return false;
+  }
+};
 
-userSchema.methods.generateJWT = function(){
-    
-    return jwt.sign({email: this.email}, process.env.JWT_SECRET,{ expiresIn: '24h' });
-}
+// ================= JWT =================
+userSchema.methods.generateJWT = function () {
+  try {
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET not defined in .env");
+    }
 
+    return jwt.sign(
+      {
+        _id: this._id,
+        email: this.email,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+  } catch (err) {
+    console.error("JWT ERROR:", err.message);
+    throw err;
+  }
+};
 
-
-const User = mongoose.model('User', userSchema);
-
+const User = mongoose.model("User", userSchema);
 
 export default User;

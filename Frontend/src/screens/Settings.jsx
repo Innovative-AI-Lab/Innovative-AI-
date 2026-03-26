@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { UserContext } from '../context/user.context';
 import { useNavigate } from 'react-router-dom';
 import api from '../config/axios';
-import Header from '../components/Header';
+import Sidebar from '../components/Sidebar';
 import Footer from '../components/Footer';
 
 /*
@@ -570,23 +570,23 @@ const Settings = () => {
     });
   };
 
-  /* Loading */
-  if (!user || !formData) return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: T.bg }}>
-      <Header />
-      <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '32px 40px', borderRadius: 16, background: T.surface, border: `1px solid ${T.border}` }}>
-          <div style={{ width: 44, height: 44, borderRadius: 12, background: T.amberDim, border: `1px solid ${T.amberBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <i className="ri-loader-4-line" style={{ fontSize: 20, color: T.amber, animation: 'spin 1s linear infinite' }}></i>
-          </div>
-          <p style={{ color: T.textMuted, fontSize: '0.82rem', fontFamily: "'Syne', sans-serif", margin: 0 }}>Loading settings…</p>
-        </motion.div>
-      </main>
-      <Footer />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  );
+  if (!user || !formData) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', background: T.bg }}>
+        <Sidebar activeId="settings" setActiveId={() => {}} />
+        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '32px 40px', borderRadius: 16, background: T.surface, border: `1px solid ${T.border}` }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: T.amberDim, border: `1px solid ${T.amberBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <i className="ri-loader-4-line" style={{ fontSize: 20, color: T.amber, animation: 'spin 1s linear infinite' }}></i>
+            </div>
+            <p style={{ color: T.textMuted, fontSize: '0.82rem', fontFamily: "'Syne', sans-serif", margin: 0 }}>Loading settings…</p>
+          </motion.div>
+        </main>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   const activeTabData = TABS.find(t => t.id === activeTab);
   const tabDescriptions = {
@@ -595,32 +595,19 @@ const Settings = () => {
     ai:          'Configure AI assistance and intelligent features',
     security:    'Update credentials and account protection',
   };
+  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Developer';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: T.bg, fontFamily: "'Syne', sans-serif" }}>
-
-      {/* Subtle background grid */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-        backgroundImage: `
-          linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px)
-        `,
-        backgroundSize: '40px 40px'
-      }} />
-      {/* Amber glow top-left */}
-      <div style={{
-        position: 'fixed', top: -120, left: -80, width: 400, height: 400,
-        borderRadius: '50%', background: 'rgba(245,158,11,0.06)',
-        filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0
-      }} />
-
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <Header />
-
+    <div style={{ minHeight: '100vh', display: 'flex', background: T.bg, fontFamily: "'Syne', sans-serif" }}>
+      <Sidebar
+        activeId="settings"
+        setActiveId={(id) => id === 'logout' ? logout() : navigate('/')}
+        displayName={displayName}
+        onLogout={() => { logout(); navigate('/login'); }}
+        onNewProject={() => {}}
+      />
+      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
         <main style={{ flex: 1, maxWidth: 920, width: '100%', margin: '0 auto', padding: '32px 20px 48px' }}>
-
-          {/* ── Page header ── */}
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
             style={{ marginBottom: 28 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -642,13 +629,10 @@ const Settings = () => {
           </motion.div>
 
           <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-
-            {/* ── Sidebar ── */}
             <motion.aside
               initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35, delay: 0.08 }}
               style={{ width: 200, flexShrink: 0, minWidth: 160 }}
             >
-              {/* Nav */}
               <div style={{ background: T.surface, borderRadius: 14, border: `1px solid ${T.border}`, padding: 6, marginBottom: 12 }}>
                 {TABS.map((tab, i) => {
                   const active = activeTab === tab.id;
@@ -691,7 +675,6 @@ const Settings = () => {
                 })}
               </div>
 
-              {/* User mini-card */}
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
                 style={{ background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, padding: '11px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img
@@ -709,14 +692,11 @@ const Settings = () => {
               </motion.div>
             </motion.aside>
 
-            {/* ── Main Panel ── */}
             <motion.div
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.12 }}
               style={{ flex: 1, minWidth: 0 }}
             >
               <div style={{ background: T.surface, borderRadius: 16, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
-
-                {/* Panel header */}
                 <div style={{
                   padding: '14px 20px',
                   borderBottom: `1px solid ${T.border}`,
@@ -738,7 +718,6 @@ const Settings = () => {
                     </p>
                   </div>
 
-                  {/* Tab breadcrumb pill */}
                   <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
                     {TABS.map(t => (
                       <button key={t.id} onClick={() => setActiveTab(t.id)}
@@ -753,7 +732,6 @@ const Settings = () => {
                   </div>
                 </div>
 
-                {/* Content */}
                 <div style={{ padding: '22px 22px 6px' }}>
                   <AnimatePresence mode="wait">
                     <motion.div
@@ -769,7 +747,6 @@ const Settings = () => {
                   </AnimatePresence>
                 </div>
 
-                {/* Footer actions */}
                 {activeTab !== 'security' && (
                   <div style={{
                     padding: '14px 22px',
@@ -832,7 +809,6 @@ const Settings = () => {
             </motion.div>
           </div>
         </main>
-
         <Footer />
       </div>
 

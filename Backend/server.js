@@ -1,96 +1,144 @@
 import 'dotenv/config';
 import http from 'http';
 import { Server } from 'socket.io';
-import app from './app.js';
+import app, { start as startDb } from './app.js';
 
-const PORT = process.env.PORT || 4000;
-const server = http.createServer(app);
+const initialPort = parseInt(process.env.PORT) || 4001;
+let server;
 
-// Initialize Socket.io
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true,
-  },
-});
+// ================= START SERVER =================
+async function startServer(port) {
+  try {
+    await startDb();
 
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+    server = http.createServer(app);
 
-  // Join room
-  socket.on('join-room', (roomId, userId, username) => {
-    socket.join(roomId);
-    socket.userId = userId;
-    socket.username = username;
-    console.log(`${username} joined room: ${roomId}`);
-    
-    // Notify others in the room
-    socket.to(roomId).emit('user-joined', { userId, username });
-  });
+    const io = new Server(server, {
+      cors: {
+        origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+        credentials: true,
+      },
+    });
 
-  // Handle chat messages
-  socket.on('send-message', async (data) => {
-    try {
-      const { roomId, message, sender, messageType } = data;
-      
-      // Save message to database
-      const chatService = (await import('./services/chat.service.js')).default;
-      const savedMessage = await chatService.saveMessage(roomId, sender, message, messageType);
-      
-      // Broadcast to room
-      io.to(roomId).emit('new-message', {
-        ...savedMessage,
-        sender: sender,
-        text: message,
-        messageType: messageType || 'text',
-        timestamp: new Date()
+    global.io = io;
+
+    // ================= SOCKET =================
+    io.on('connection', (socket) => {
+      console.log('User connected:', socket.id);
+
+      socket.on('join-room', (roomId, userId, username) => {
+        socket.join(roomId);
+        socket.userId = userId;
+        socket.username = username;
+        socket.to(roomId).emit('user-joined', { userId, username });
       });
-    } catch (error) {
-      console.error('Error sending message:', error);
-      socket.emit('message-error', { error: 'Failed to send message' });
-    }
-  });
 
-  // Handle typing indicators
-  socket.on('typing-start', (data) => {
-    socket.to(data.roomId).emit('user-typing', { userId: socket.userId, username: socket.username });
-  });
+      socket.on('send-message', async (data) => {
+        try {
+          const { roomId, message, sender, messageType } = data;
 
-  socket.on('typing-stop', (data) => {
-    socket.to(data.roomId).emit('user-stopped-typing', { userId: socket.userId, username: socket.username });
-  });
+          const chatService = (await import('./services/chat.service.js')).default;
 
-  // Handle disconnect
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
-    // Notify rooms that user left
-    socket.rooms.forEach(room => {
-      if (room !== socket.id) {
-        socket.to(room).emit('user-left', { userId: socket.userId, username: socket.username });
+          const savedMessage = await chatService.saveMessage(
+            roomId,
+            sender,
+            message,
+            messageType
+          );
+
+          io.to(roomId).emit('new-message', {
+            ...savedMessage,
+            sender,
+            text: message,
+            messageType: messageType || 'text',
+            timestamp: new Date(),
+          });
+
+        } catch (error) {
+          console.error('SEND MESSAGE ERROR:', error);
+          socket.emit('message-error', { error: 'Failed to send message' });
+        }
+      });
+
+      socket.on('typing-start', ({ roomId }) => {
+        socket.to(roomId).emit('user-typing', {
+          userId: socket.userId,
+          username: socket.username,
+        });
+      });
+
+      socket.on('typing-stop', ({ roomId }) => {
+        socket.to(roomId).emit('user-stopped-typing', {
+          userId: socket.userId,
+          username: socket.username,
+        });
+      });
+
+      socket.on('member-added', (data) => socket.to(data.roomId).emit('member-added', data));
+      socket.on('member-updated', (data) => socket.to(data.roomId).emit('member-updated', data));
+      socket.on('member-removed', (data) => socket.to(data.roomId).emit('member-removed', data));
+
+      socket.on('join-activity-room', (roomId = 'global') => {
+        socket.join(`activity-${roomId}`);
+      });
+
+      socket.on('leave-activity-room', (roomId = 'global') => {
+        socket.leave(`activity-${roomId}`);
+      });
+
+      socket.on('disconnect', () => {
+        console.log('User disconnected:', socket.id);
+      });
+    });
+
+    // ================= START LISTEN =================
+    server.listen(port, () => {
+      console.log(`🚀 Server running on port ${port}`);
+    });
+
+    // ================= PORT FALLBACK =================
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`⚠️ Port ${port} busy → trying ${port + 1}`);
+        startServer(port + 1);
+      } else {
+        console.error('SERVER ERROR:', err);
+        process.exit(1);
       }
     });
-  });
-});
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
-  console.log(`📡 Socket.io enabled for real-time chat`);
-});
+  } catch (error) {
+    console.error('STARTUP ERROR:', error);
+    process.exit(1);
+  }
+}
 
-// Graceful shutdown
+// ================= SHUTDOWN =================
 const shutdown = (signal) => {
-  console.log(`\n${signal} received — shutting down gracefully`);
-  server.close(() => {
-    console.log('✅ HTTP server closed');
+  console.log(`\n${signal} received → shutting down`);
+
+  if (server) {
+    server.close(() => {
+      console.log('✅ Server closed');
+      process.exit(0);
+    });
+  } else {
     process.exit(0);
-  });
+  }
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
-process.on('unhandledRejection', (reason) => {
-  console.error('❌ Unhandled Rejection:', reason);
-  server.close(() => process.exit(1));
+// ================= GLOBAL ERRORS =================
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION:', err);
 });
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+
+// ✅ FINAL FIX HERE
+startServer(initialPort);

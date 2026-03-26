@@ -6,7 +6,7 @@ import Footer from '../components/Footer';
 
 export default function Register() {
   const navigate = useNavigate();
-  const { setUser } = useContext(UserContext);
+  const { login } = useContext(UserContext);
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -49,8 +49,14 @@ export default function Register() {
       password,
     })
       .then((res) => {
-        localStorage.setItem('token', res.data.token);
-        setUser(res.data.user);
+        const { token, user: userData } = res.data;
+        if (!token || !userData) {
+          setError('Invalid register response: missing data.');
+          return;
+        }
+
+        localStorage.setItem('token', token);
+        login(userData, token);
         navigate('/');
       })
       .catch((err) => {
