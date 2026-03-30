@@ -1,55 +1,63 @@
 import { Router } from 'express';
-import { body, validationResult } from 'express-validator';
+import { body, param } from 'express-validator';
 import * as projectController from '../controllers/project.controller.js';
 import * as authMiddleware from '../middleware/auth.middleware.js';
+import { handleValidationErrors } from '../middleware/error.middleware.js';
 
 const router = Router();
 
-router.post('/create',
+// Get all projects for the logged-in user
+router.get(
+    '/',
     authMiddleware.authUser,
-    body('name').isString().withMessage('Name is required'),
+    projectController.getAllProjects
+);
+
+// Create a new project
+router.post(
+    '/',
+    authMiddleware.authUser,
+    body('name').notEmpty().withMessage('Project name is required'),
+    handleValidationErrors,
     projectController.createProject
-)
+);
 
-router.get('/all',
+// Get a single project by ID
+router.get(
+    '/:id',
     authMiddleware.authUser,
-    projectController.getAllProject
-)
-
-// router.put('/add-user',
-//     authMiddleware.authUser,
-
-
-
-//     // validate that `users` is an array of strings
-//     body('users').isArray().withMessage('Users must be an array'),
-//     body('users.*').isString().withMessage('Each user must be a string'),
-//     // validate projectId is a non-empty string
-//     body('projectId').isString().notEmpty().withMessage('projectId is required and must be a string'),
-//     // inline middleware to return validation errors
-//     (req, res, next) => {
-//         const errors = validationResult(req);
-//         if (!errors.isEmpty()) {
-//             return res.status(400).json({ errors: errors.array() });
-//         }
-//         next();
-//     },
-
-//     projectController.addUserToProject
-// )
-
-
-router.put('/add-user',
-    authMiddleware.authUser,
-    body('projectId').isString().withMessage('Project ID is required'),
-    body('users').isArray({ min: 1 }).withMessage('Users must be an array of strings').bail()
-        .custom((users) => users.every(user => typeof user === 'string')).withMessage('Each user must be a string'),
-    projectController.addUserToProject
-)
-
-router.get('/get-project/:projectId',
-    authMiddleware.authUser,
+    param('id').isMongoId().withMessage('Invalid Project ID'),
+    handleValidationErrors,
     projectController.getProjectById
-)
+);
+
+// Update a project
+router.put(
+    '/:id',
+    authMiddleware.authUser,
+    param('id').isMongoId().withMessage('Invalid Project ID'),
+    body('name').notEmpty().withMessage('Project name is required'),
+    handleValidationErrors,
+    projectController.updateProject
+);
+
+// Delete a project
+router.delete(
+    '/:id',
+    authMiddleware.authUser,
+    param('id').isMongoId().withMessage('Invalid Project ID'),
+    handleValidationErrors,
+    projectController.deleteProject
+);
+
+// Add a member to a project
+router.post(
+    '/:id/add-member',
+    authMiddleware.authUser,
+    param('id').isMongoId().withMessage('Invalid Project ID'),
+    body('email').isEmail().withMessage('Valid email is required'),
+    handleValidationErrors,
+    projectController.addMemberToProject
+);
 
 export default router;

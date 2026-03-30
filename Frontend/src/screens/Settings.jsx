@@ -1,9 +1,9 @@
-import React, { useState, useContext, useEffect } from 'react';
+import { FiArrowLeft } from 'react-icons/fi';
+import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UserContext } from '../context/user.context';
-import { useNavigate } from 'react-router-dom';
 import api from '../config/axios';
-import Sidebar from '../components/Sidebar';
 import Footer from '../components/Footer';
 
 /*
@@ -573,7 +573,6 @@ const Settings = () => {
   if (!user || !formData) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', background: T.bg }}>
-        <Sidebar activeId="settings" setActiveId={() => {}} />
         <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
             style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '32px 40px', borderRadius: 16, background: T.surface, border: `1px solid ${T.border}` }}>
@@ -599,13 +598,16 @@ const Settings = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: T.bg, fontFamily: "'Syne', sans-serif" }}>
-      <Sidebar
-        activeId="settings"
-        setActiveId={(id) => id === 'logout' ? logout() : navigate('/')}
-        displayName={displayName}
-        onLogout={() => { logout(); navigate('/login'); }}
-        onNewProject={() => {}}
-      />
+      <motion.button
+          onClick={() => navigate("/")}
+          className="absolute top-8 left-8 flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+          style={{zIndex: 10}}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <FiArrowLeft />
+          Back to Home
+        </motion.button>
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
         <main style={{ flex: 1, maxWidth: 920, width: '100%', margin: '0 auto', padding: '32px 20px 48px' }}>
           <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}

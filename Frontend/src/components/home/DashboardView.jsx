@@ -5,7 +5,7 @@ import SkeletonCard from '../common/SkeletonCard';
 import ProjectCard from '../common/ProjectCard';
 import { BRAND } from '../../constants';
 
-function DashboardView({ projects, fetching, displayName, onOpenModal, onOpenProject, totalMembers }) {
+function DashboardView({ projects, fetching, displayName, onOpenModal, onProjectClick, totalMembers }) {
   const features = [
     { icon: '🤖', label: 'AI Assistant', desc: 'Context-aware code generation & answers',   bg: 'bg-violet-500/10'  },
     { icon: '✦',  label: 'Code Editor',  desc: 'Syntax highlighting across 40+ languages',  bg: 'bg-cyan-500/10'    },
@@ -92,7 +92,7 @@ function DashboardView({ projects, fetching, displayName, onOpenModal, onOpenPro
               </div>
             : <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {projects.slice(0, 3).map((p, i) => (
-                  <ProjectCard key={p._id} project={p} index={i} onClick={() => onOpenProject(p)} />
+                  <ProjectCard key={p._id} project={p} index={i} onProjectClick={onProjectClick} />
                 ))}
               </div>
           }

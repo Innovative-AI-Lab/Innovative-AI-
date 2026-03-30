@@ -13,18 +13,20 @@ import Terminal from '../components/Terminal';
 ───────────────────────────────────────── */
 const CopyButton = ({ text }) => {
   const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [text]);
   return (
-    <button
-      onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 5, padding: '3px 9px',
-        fontSize: 11, borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
-        background: copied ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
-        color: copied ? '#4ade80' : '#71717a',
-        border: `1px solid ${copied ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)'}`,
-        fontFamily: "'DM Sans', sans-serif"
-      }}
-    >
+    <button onClick={handleCopy} style={{
+      display: 'flex', alignItems: 'center', gap: 5, padding: '3px 9px',
+      fontSize: 11, borderRadius: 6, cursor: 'pointer', transition: 'all 0.15s',
+      background: copied ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.06)',
+      color: copied ? '#4ade80' : '#71717a',
+      border: `1px solid ${copied ? 'rgba(34,197,94,0.25)' : 'rgba(255,255,255,0.08)'}`,
+      fontFamily: "'DM Sans', sans-serif"
+    }}>
       <i className={copied ? 'ri-check-line' : 'ri-clipboard-line'} style={{ fontSize: 10 }}></i>
       {copied ? 'Copied' : 'Copy'}
     </button>
@@ -362,8 +364,8 @@ const Project = () => {
   const fetchProject = async () => {
     if (!currentProjectId) return;
     try {
-      const res = await axios.get(`/projects/get-project/${currentProjectId}`);
-      setProjectData(res.data.project);
+      const res = await axios.get(`/projects/${currentProjectId}`);
+      setProjectData(res.data.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
@@ -406,13 +408,22 @@ const Project = () => {
   const addUsers = async () => {
     if (selectedUsers.size === 0) return;
     try {
-      await axios.put('/projects/add-user', { projectId: currentProjectId, users: Array.from(selectedUsers) });
+      const promises = Array.from(selectedUsers).map(userId => {
+        const user = users.find(u => u._id === userId);
+        if (user) {
+          return axios.post(`/projects/${currentProjectId}/add-member`, { email: user.email });
+        }
+        return Promise.resolve();
+      });
+
+      await Promise.all(promises);
+
       setIsInviteOpen(false);
       setSelectedUsers(new Set());
       fetchProject();
       showToast(`${selectedUsers.size} member(s) added successfully`);
     } catch (e) {
-      showToast(e.response?.data?.error || 'Failed to add users', 'error');
+      showToast(e.response?.data?.message || 'Failed to add users', 'error');
     }
   };
 

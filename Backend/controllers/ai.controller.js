@@ -55,13 +55,21 @@ export const saveResponse = async (req, res) => {
         const doc = await AIResponse.create({ prompt, response, projectId: projectId || undefined, createdBy: req.user._id });
         res.status(201).json({ success: true, id: doc._id });
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Error saving AI response:', error);
+        res.status(500).json({ success: false, error: 'Failed to save response in database.', details: error.message });
     }
 };
 
 export const getResponse = async (req, res) => {
     try {
-        const doc = await AIResponse.findById(req.params.id).populate('createdBy', 'displayName email');
+        const { id } = req.params;
+
+        // Validate ID format
+        if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+            return res.status(400).json({ success: false, error: 'Invalid ID format' });
+        }
+
+        const doc = await AIResponse.findById(id).populate('createdBy', 'displayName email');
         if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
         res.status(200).json({ success: true, data: doc });
     } catch (error) {

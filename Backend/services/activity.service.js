@@ -221,60 +221,55 @@ class ActivityService {
             if (userId) matchQuery.user = userId;
             if (projectId) matchQuery.project = projectId;
 
-            const stats = await Activity.aggregate([
+            const results = await Activity.aggregate([
                 { $match: matchQuery },
                 {
-                    $group: {
-                        _id: null,
-                        totalActivities: { $sum: 1 },
-                        unreadActivities: {
-                            $sum: { $cond: [{ $eq: ['$isRead', false] }, 1, 0] }
-                        },
-                        uniqueUsers: { $addToSet: '$user' },
-                        uniqueProjects: { $addToSet: '$project' },
-                        actionsBreakdown: {
-                            $push: '$action'
-                        },
-                        categoriesBreakdown: {
-                            $push: '$category'
-                        }
+                    $facet: {
+                        "mainStats": [
+                            {
+                                $group: {
+                                    _id: null,
+                                    totalActivities: { $sum: 1 },
+                                    unreadActivities: { $sum: { $cond: [{ $eq: ['$isRead', false] }, 1, 0] } },
+                                    uniqueUsers: { $addToSet: '$user' },
+                                    uniqueProjects: { $addToSet: '$project' },
+                                }
+                            },
+                            {
+                                $project: {
+                                    _id: 0,
+                                    totalActivities: 1,
+                                    unreadActivities: 1,
+                                    uniqueUsersCount: { $size: '$uniqueUsers' },
+                                    uniqueProjectsCount: { $size: '$uniqueProjects' },
+                                }
+                            }
+                        ],
+                        "actionsBreakdown": [
+                            { $group: { _id: "$action", count: { $sum: 1 } } },
+                            { $group: { _id: null, items: { $push: { k: "$_id", v: "$count" } } } },
+                            { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+                        ],
+                        "categoriesBreakdown": [
+                            { $group: { _id: "$category", count: { $sum: 1 } } },
+                            { $group: { _id: null, items: { $push: { k: "$_id", v: "$count" } } } },
+                            { $replaceRoot: { newRoot: { $arrayToObject: "$items" } } }
+                        ]
                     }
                 },
                 {
                     $project: {
-                        totalActivities: 1,
-                        unreadActivities: 1,
-                        uniqueUsersCount: { $size: '$uniqueUsers' },
-                        uniqueProjectsCount: { $size: '$uniqueProjects' },
-                        actionsBreakdown: {
-                            $reduce: {
-                                input: '$actionsBreakdown',
-                                initialValue: {},
-                                in: {
-                                    $mergeObjects: [
-                                        '$$value',
-                                        { ['$$this']: { $add: [{ $ifNull: ['$$value.$$this', 0] }, 1] } }
-                                    ]
-                                }
-                            }
-                        },
-                        categoriesBreakdown: {
-                            $reduce: {
-                                input: '$categoriesBreakdown',
-                                initialValue: {},
-                                in: {
-                                    $mergeObjects: [
-                                        '$$value',
-                                        { ['$$this']: { $add: [{ $ifNull: ['$$value.$$this', 0] }, 1] } }
-                                    ]
-                                }
-                            }
-                        }
+                        totalActivities: { $ifNull: [{ $arrayElemAt: ["$mainStats.totalActivities", 0] }, 0] },
+                        unreadActivities: { $ifNull: [{ $arrayElemAt: ["$mainStats.unreadActivities", 0] }, 0] },
+                        uniqueUsersCount: { $ifNull: [{ $arrayElemAt: ["$mainStats.uniqueUsersCount", 0] }, 0] },
+                        uniqueProjectsCount: { $ifNull: [{ $arrayElemAt: ["$mainStats.uniqueProjectsCount", 0] }, 0] },
+                        actionsBreakdown: { $ifNull: [{ $arrayElemAt: ["$actionsBreakdown", 0] }, {}] },
+                        categoriesBreakdown: { $ifNull: [{ $arrayElemAt: ["$categoriesBreakdown", 0] }, {}] }
                     }
                 }
             ]);
 
-            return stats[0] || {
+            return results[0] || {
                 totalActivities: 0,
                 unreadActivities: 0,
                 uniqueUsersCount: 0,

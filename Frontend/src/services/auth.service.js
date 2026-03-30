@@ -2,12 +2,14 @@ import axios from '../config/axios';
 
 const storeToken = (token) => {
   if (token) {
-    localStorage.setItem('token', token);
+    localStorage.setItem('ai_token', token);
+    // also set user in LS
   }
 };
 
 const removeToken = () => {
-  localStorage.removeItem('token');
+  localStorage.removeItem('ai_token');
+  localStorage.removeItem('ai_user');
 };
 
 export const login = async ({ email, password }) => {

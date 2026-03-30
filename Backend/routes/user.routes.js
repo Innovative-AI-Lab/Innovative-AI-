@@ -40,6 +40,10 @@ router.put("/password", authMiddleware.authUser, userController.updatePasswordCo
 // GET ALL USERS
 router.get("/all", authMiddleware.authUser, userController.getAllUsersController);
 
+
+// SEARCH USERS
+router.get('/search', authMiddleware.authUser, userController.searchUsers);
+
 // ADMIN CREATE USER
 router.post("/create", authMiddleware.authUser, userController.createUserByAdminController);
 

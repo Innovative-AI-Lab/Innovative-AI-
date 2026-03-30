@@ -35,7 +35,6 @@ router.post('/chat',
 );
 
 router.get('/response/:id',
-    authMiddleware.authUser,
     aiController.getResponse
 );
 

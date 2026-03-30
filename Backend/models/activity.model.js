@@ -9,7 +9,7 @@ const activitySchema = new mongoose.Schema({
     action: {
         type: String,
         required: true,
-        enum: ['created_project', 'joined_project', 'left_project', 'sent_message', 'ai_chat', 'code_generated', 'settings_updated', 'login', 'logout', 'file_uploaded', 'file_deleted', 'comment_added', 'task_completed', 'milestone_reached', 'custom']
+        enum: ['created_project', 'updated_project', 'deleted_project', 'added_member', 'joined_project', 'left_project', 'sent_message', 'ai_chat', 'code_generated', 'settings_updated', 'login', 'logout', 'file_uploaded', 'file_deleted', 'comment_added', 'task_completed', 'milestone_reached', 'custom']
     },
     category: {
         type: String,
@@ -25,7 +25,7 @@ const activitySchema = new mongoose.Schema({
     },
     project: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'project'
+        ref: 'Project'
     },
     tags: [{
         type: String

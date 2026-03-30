@@ -13,7 +13,7 @@ function CreateModal({ onClose, onCreated }) {
     if (!name.trim()) return;
     setError('');
     setLoading(true);
-    axios.post('/projects/create', { name: name.trim().toLowerCase() })
+    axios.post('/projects', { name: name.trim().toLowerCase() })
       .then(res  => { onCreated(res.data); onClose(); })
       .catch(err => setError(err.response?.data?.message || 'Failed to create project'))
       .finally(() => setLoading(false));

@@ -188,6 +188,37 @@ export const getAllUsersController = async (req, res) => {
   }
 };
 
+// ================= SEARCH USERS =================
+export const searchUsers = async (req, res) => {
+  try {
+      const { query } = req.query;
+      const currentUserId = req.user._id;
+
+      if (!query) {
+          return errorResponse(res, "Search query is required", 400);
+      }
+
+      // Find users matching displayName or email, excluding the current user
+      const users = await userModel.find({
+          $and: [
+              {
+                  $or: [
+                      { displayName: { $regex: query, $options: 'i' } },
+                      { email: { $regex: query, $options: 'i' } }
+                  ]
+              },
+              { _id: { $ne: currentUserId } }
+          ]
+      }).select('displayName email photoURL _id').limit(10);
+
+      return successResponse(res, { users }, "Users found");
+
+  } catch (err) {
+      console.error("USER SEARCH ERROR:", err);
+      return errorResponse(res, "Internal server error", 500);
+  }
+};
+
 // ================= ADMIN CREATE =================
 export const createUserByAdminController = async (req, res) => {
   try {

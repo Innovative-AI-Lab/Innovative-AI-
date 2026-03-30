@@ -36,7 +36,7 @@ function ActivityView({ projects, displayName }) {
   // Initialize real-time updates
   useEffect(() => {
     if (realTimeEnabled && !socketRef.current) {
-      const socket = io(process.env.REACT_APP_BACKEND_URL || 'http://localhost:4000', {
+      const socket = io(import.meta.env.VITE_APP_BACKEND_URL || 'http://localhost:4001', {
         auth: { token: localStorage.getItem('token') }
       });
 

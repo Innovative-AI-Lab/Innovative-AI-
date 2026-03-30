@@ -13,11 +13,13 @@ export const createUser = async ({ displayName, email, password }) => {
       throw new Error("Email already exists");
     }
 
-    const user = await User.create({
+    const user = new User({
       displayName: displayName || email.split("@")[0],
       email,
       password,
     });
+    
+    await user.save();
 
     return user;
 

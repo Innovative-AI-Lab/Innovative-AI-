@@ -2,14 +2,53 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { NAV_LINKS, BRAND_INFO } from './Navlinks';
 import { MdOutlineChevronLeft } from 'react-icons/md';
+import { useNavigate } from 'react-router-dom';
 
-const Sidebar = ({ activeId, setActiveId, onLogout, displayName, onNewProject }) => {
+const Sidebar = ({ activeId, onLogout, displayName, onNewProject }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   const handleToggle = () => setIsCollapsed(!isCollapsed);
 
+  const handleNavigate = (item) => {
+    if (item.id === 'logout') {
+      onLogout();
+    } else if (item.id === 'dashboard') {
+      navigate('/');
+    } else {
+      navigate(`/${item.id}`);
+    }
+  };
+
   const mainLinks = NAV_LINKS.filter(link => link.section === 'main');
   const secondaryLinks = NAV_LINKS.filter(link => link.section === 'secondary');
+
+  const NavItem = ({ item, isActive, onClick, isCollapsed }) => (
+    <motion.button
+      onClick={onClick}
+      className={`flex items-center gap-3 w-full h-10 px-3.5 rounded-lg text-sm font-medium transition-colors ${
+        isActive
+          ? 'bg-white/[0.08] text-zinc-100'
+          : 'text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100'
+      }`}
+      whileTap={{ scale: 0.97 }}
+    >
+      <span className="text-xl">{item.icon}</span>
+      <AnimatePresence>
+        {!isCollapsed && (
+          <motion.span
+            initial={{ opacity: 0, width: 0, marginLeft: 0 }}
+            animate={{ opacity: 1, width: 'auto', marginLeft: 8 }}
+            exit={{ opacity: 0, width: 0, marginLeft: 0 }}
+            transition={{ duration: 0.2 }}
+            className="whitespace-nowrap"
+          >
+            {item.label}
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
 
   return (
     <motion.div
@@ -71,7 +110,7 @@ const Sidebar = ({ activeId, setActiveId, onLogout, displayName, onNewProject })
             key={item.id}
             item={item}
             isActive={activeId === item.id}
-            onClick={() => setActiveId(item.id)}
+            onClick={() => handleNavigate(item)}
             isCollapsed={isCollapsed}
           />
         ))}
@@ -81,7 +120,7 @@ const Sidebar = ({ activeId, setActiveId, onLogout, displayName, onNewProject })
       <div className="p-4 border-t border-white/[0.06]">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
-            {displayName[0].toUpperCase()}
+            {(displayName || 'U')[0].toUpperCase()}
           </div>
           <AnimatePresence>
             {!isCollapsed && (
@@ -103,42 +142,13 @@ const Sidebar = ({ activeId, setActiveId, onLogout, displayName, onNewProject })
               key={item.id}
               item={item}
               isActive={activeId === item.id}
-              onClick={item.id === 'logout' ? onLogout : () => setActiveId(item.id)}
+              onClick={() => handleNavigate(item)}
               isCollapsed={isCollapsed}
             />
           ))}
         </div>
       </div>
     </motion.div>
-  );
-};
-
-const NavItem = ({ item, isActive, onClick, isCollapsed }) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
-        ${isActive
-          ? 'bg-violet-500/20 text-violet-300 shadow-sm'
-          : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'
-        }
-        ${isCollapsed ? 'justify-center' : ''}
-      `}
-    >
-      <span className="text-xl">{item.icon}</span>
-      <AnimatePresence>
-        {!isCollapsed && (
-          <motion.span
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: 'auto' }}
-            exit={{ opacity: 0, width: 0 }}
-            className="overflow-hidden whitespace-nowrap"
-          >
-            {item.label}
-          </motion.span>
-        )}
-      </AnimatePresence>
-    </button>
   );
 };
 

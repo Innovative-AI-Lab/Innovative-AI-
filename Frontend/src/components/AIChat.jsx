@@ -281,14 +281,18 @@ const AIChat = ({ projectId, onClose }) => {
         if (projectId) {
           try {
             const saveRes = await axios.post('/ai/save-response', { prompt: text, response: res.data.response, projectId });
-            if (saveRes.data.success) {
+            if (saveRes.data.success && saveRes.data.id) {
               const link = `${window.location.origin}/ai-response/${saveRes.data.id}`;
               await axios.post('/project-chat/send', { projectId, message: `🤖 AI: ${link}` });
+            } else {
+              throw new Error('Failed to save AI response or get ID back.');
             }
-          } catch {
+          } catch (err) {
+            const errorDetails = err.response?.data?.details || err.message;
+            console.error("Failed to save AI response:", errorDetails);
             axios.post('/project-chat/send', {
               projectId,
-              message: `🤖 AI: ${res.data.response.slice(0, 300)}${res.data.response.length > 300 ? '...' : ''}`,
+              message: `🤖 AI: ${res.data.response.slice(0, 300)}${res.data.response.length > 300 ? '...' : ''} (link could not be created)`,
             }).catch(() => {});
           }
         }

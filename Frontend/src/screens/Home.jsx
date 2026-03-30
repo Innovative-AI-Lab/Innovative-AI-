@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { UserContext } from "../context/user.context";
 import axios from "../config/axios";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "../hooks/useToast";
 import { BRAND } from "../constants";
@@ -11,13 +11,11 @@ import DashboardView from "../components/home/DashboardView";
 import ProjectsView from "../components/home/ProjectsView";
 import AIStudioView from "../components/home/AIStudioView";
 import ActivityView from "../components/home/ActivityView";
-import Settings from "../screens/Settings";
 import Sidebar from "../components/Sidebar";
 
 const Home = () => {
   const { user, token, logout } = useContext(UserContext);
 
-  const [activeId, setActiveId] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [projects, setProjects] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -29,6 +27,9 @@ const Home = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toasts, addToast } = useToast();
+  const location = useLocation();
+
+  const activeId = location.pathname.substring(1) || "dashboard";
 
   /* ================= TOKEN LOGIN ================= */
   useEffect(() => {
@@ -55,14 +56,16 @@ const Home = () => {
     setFetching(true);
 
     axios
-      .get("/projects/all")
-      .then((res) => setProjects(res.data.projects || []))
+      .get("/projects")
+      .then((res) => setProjects(res.data.data || []))
       .catch(() => addToast("Failed to load projects", "error"))
       .finally(() => setFetching(false));
   }, [token]);
 
   /* ================= SMART NOTIFICATIONS ================= */
   useEffect(() => {
+    if (!token) return;
+
     let interval;
 
     const fetchNotifications = () => {
@@ -82,13 +85,13 @@ const Home = () => {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   /* ================= HANDLERS ================= */
   const handleProjectCreated = (p) => {
     setProjects((prev) => [...prev, p]);
     addToast(`"${p.name}" created`);
-    setActiveId("projects");
+    navigate("/projects");
   };
 
   const handleLogout = () => {
@@ -113,7 +116,7 @@ const Home = () => {
     fetching,
     displayName,
     onOpenModal: () => setIsModalOpen(true),
-    onOpenProject: handleOpenProject,
+    onProjectClick: handleOpenProject,
     onProjectUpdated: setProjects,
     totalMembers,
     addToast,
@@ -136,8 +139,6 @@ const Home = () => {
             displayName={displayName}
           />
         );
-      case "settings":
-        return <Settings user={user} />;
       default:
         return <DashboardView {...sharedProps} />;
     }
@@ -150,7 +151,6 @@ const Home = () => {
       {/* SIDEBAR */}
       <Sidebar
         activeId={activeId}
-        setActiveId={setActiveId}
         onNewProject={() => setIsModalOpen(true)}
         displayName={displayName}
         onLogout={handleLogout}
