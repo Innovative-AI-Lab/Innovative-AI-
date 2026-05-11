@@ -38,9 +38,18 @@
 ## 🏠 Landing Page
 
 <p align="center">
-  <img src="./Screenshots/landing-page.jpeg" width="100%" alt="Innovative AI — Landing Page" />
+  <img src="./Screenshots/landing-page1.jpeg" width="100%" alt="Innovative AI — Landing Page Hero" />
 </p>
-<p align="center"><i>Futuristic hero landing page with live demo access and platform overview</i></p>
+
+<p align="center">
+  <img src="./Screenshots/landing-page2.jpeg" width="100%" alt="Innovative AI — Landing Page Features" />
+</p>
+
+<p align="center">
+  <img src="./Screenshots/footer-page.jpeg" width="100%" alt="Innovative AI — Footer" />
+</p>
+
+<p align="center"><i>Futuristic hero landing page — platform overview, features & footer</i></p>
 
 ---
 
@@ -62,27 +71,34 @@
 ## 🔐 Authentication
 
 <p align="center">
-  <img src="./Screenshots/login-page.jpeg" width="48%" alt="Login Page" />
-  &nbsp;&nbsp;
-  <img src="./Screenshots/signup-page.jpeg" width="48%" alt="Signup Page" />
+  <img src="./Screenshots/signin-page.png" width="32%" alt="Sign In — Mobile View" />
 </p>
-<p align="center"><i>Secure JWT-based Login & Registration — stateless, fast, and production-hardened</i></p>
+<p align="center"><i>📱 Secure JWT-based Sign In — fully responsive mobile-first design</i></p>
 
 ---
 
-## 📊 Project Dashboard
+## 📂 Projects Section
 
 <p align="center">
-  <img src="./Screenshots/dashboard-page.jpeg" width="100%" alt="Project Dashboard" />
+  <img src="./Screenshots/project-section-page.jpeg" width="100%" alt="Projects Section" />
 </p>
-<p align="center"><i>Central dashboard — create, manage, and join project workspaces in one view</i></p>
+<p align="center"><i>Browse, create, and manage all your project workspaces from one place</i></p>
 
 ---
 
-## 💬 Real-Time Team Collaboration
+## 🗂️ Navigation & Menu
 
 <p align="center">
-  <img src="./Screenshots/team-collaboration.jpeg" width="100%" alt="Team Collaboration Chat" />
+  <img src="./Screenshots/menu-page.jpeg" width="32%" alt="Navigation Menu — Mobile View" />
+</p>
+<p align="center"><i>📱 Sleek mobile navigation menu — smooth, intuitive, and fully accessible</i></p>
+
+---
+
+## 💬 Real-Time Team Chat
+
+<p align="center">
+  <img src="./Screenshots/chat-page.jpeg" width="100%" alt="Real-Time Team Chat" />
 </p>
 <p align="center"><i>Live team chat powered by Socket.io — instant messaging with real-time presence</i></p>
 
@@ -97,41 +113,34 @@
 
 ---
 
-## 💻 Integrated Code Editor
+## 🖥️ Project Workspace
 
 <p align="center">
-  <img src="./Screenshots/code-editor.jpeg" width="100%" alt="Code Editor" />
+  <img src="./Screenshots/project-workspace.png" width="100%" alt="Project Workspace" />
 </p>
-<p align="center"><i>Built-in browser code editor — write, edit, and execute without leaving the platform</i></p>
+<p align="center"><i>Full project workspace — integrated editor, file manager, and terminal in one view</i></p>
 
 ---
 
-## 📂 Smart File Manager
+## 🔔 Activity & Notifications
 
 <p align="center">
-  <img src="./Screenshots/file-manager.jpeg" width="100%" alt="File Manager" />
+  <img src="./Screenshots/activity-page.jpeg" width="32%" alt="Activity Feed — Mobile View" />
 </p>
-<p align="center"><i>Smart file manager — upload, organize, and manage all project assets securely</i></p>
+<p align="center"><i>📱 Real-time activity feed & notifications — stay updated on every project event</i></p>
 
 ---
 
-## 🖥️ Live Terminal & Project Workspace
+## 📱 Mobile Experience
 
 <p align="center">
-  <img src="./Screenshots/live-terminal.png" width="48%" alt="Live Terminal" />
-  &nbsp;&nbsp;
-  <img src="./Screenshots/project-workspace.png" width="48%" alt="Project Workspace" />
+  <img src="./Screenshots/signin-page.png" width="30%" alt="Sign In Mobile" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="./Screenshots/menu-page.jpeg" width="30%" alt="Menu Mobile" />
+  &nbsp;&nbsp;&nbsp;
+  <img src="./Screenshots/activity-page.jpeg" width="30%" alt="Activity Mobile" />
 </p>
-<p align="center"><i>Integrated terminal & full project workspace — run commands and manage everything in one place</i></p>
-
----
-
-## 🔔 Notifications & Activity Feed
-
-<p align="center">
-  <img src="./Screenshots/notifications.png" width="100%" alt="Notifications" />
-</p>
-<p align="center"><i>Real-time notifications and live activity streams — stay updated on every project event</i></p>
+<p align="center"><i>Fully responsive mobile-first design — seamless experience across all devices</i></p>
 
 ---
 
@@ -234,8 +243,6 @@ npm run dev
 ```
 
 ### 🔐 Environment Variables
-
-Create `.env` files based on the provided `.env.example` files.
 
 **Backend `.env`**
 ```env
