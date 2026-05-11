@@ -1,27 +1,22 @@
 import aiService from '../services/ai.service.js';
 import AIResponse from '../models/aiResponse.model.js';
 import activityService from '../services/activity.service.js';
+import { successResponse, errorResponse } from '../utils/response.util.js';
 
 export const generateResponse = async (req, res) => {
     try {
         const { prompt, context } = req.body;
         
         if (!prompt) {
-            return res.status(400).json({
-                success: false,
-                error: 'Prompt is required'
-            });
+            return errorResponse(res, 'Prompt is required', 400);
         }
 
         const result = await aiService.generateResponse(prompt, context);
-        
-        res.status(200).json(result);
+        // The service already returns a success flag and data.
+        // We just pass result.response to successResponse or just the text.
+        return successResponse(res, { response: result.response }, 'Response generated successfully');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            message: error.message
-        });
+        return errorResponse(res, 'Internal server error', 500, error);
     }
 };
 
@@ -30,33 +25,32 @@ export const generateCode = async (req, res) => {
         const { description, language } = req.body;
         
         if (!description) {
-            return res.status(400).json({
-                success: false,
-                error: 'Code description is required'
-            });
+            return errorResponse(res, 'Code description is required', 400);
         }
 
         const result = await aiService.generateCode(description, language);
-        
-        res.status(200).json(result);
+        return successResponse(res, { code: result.response }, 'Code generated successfully');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            message: error.message
-        });
+        return errorResponse(res, 'Internal server error', 500, error);
     }
 };
 
 export const saveResponse = async (req, res) => {
     try {
         const { prompt, response, projectId } = req.body;
-        if (!prompt || !response) return res.status(400).json({ success: false, error: 'prompt and response required' });
-        const doc = await AIResponse.create({ prompt, response, projectId: projectId || undefined, createdBy: req.user._id });
-        res.status(201).json({ success: true, id: doc._id });
+        if (!prompt || !response) return errorResponse(res, 'prompt and response required', 400);
+        
+        const doc = await AIResponse.create({ 
+            prompt, 
+            response, 
+            projectId: projectId || undefined, 
+            createdBy: req.user._id 
+        });
+        
+        return successResponse(res, { id: doc._id }, 'Response saved successfully', 201);
     } catch (error) {
         console.error('Error saving AI response:', error);
-        res.status(500).json({ success: false, error: 'Failed to save response in database.', details: error.message });
+        return errorResponse(res, 'Failed to save response in database.', 500, error);
     }
 };
 
@@ -64,16 +58,16 @@ export const getResponse = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Validate ID format
         if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-            return res.status(400).json({ success: false, error: 'Invalid ID format' });
+            return errorResponse(res, 'Invalid ID format', 400);
         }
 
         const doc = await AIResponse.findById(id).populate('createdBy', 'displayName email');
-        if (!doc) return res.status(404).json({ success: false, error: 'Not found' });
-        res.status(200).json({ success: true, data: doc });
+        if (!doc) return errorResponse(res, 'Not found', 404);
+        
+        return successResponse(res, doc, 'Response fetched successfully');
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
@@ -82,12 +76,12 @@ export const analyzeProject = async (req, res) => {
         const { projectId } = req.params;
         const projectData = req.body;
         if (!projectId) {
-            return res.status(400).json({ success: false, error: 'Project ID is required' });
+            return errorResponse(res, 'Project ID is required', 400);
         }
         const result = await aiService.analyzeProject({ ...projectData, id: projectId });
-        res.status(200).json(result);
+        return successResponse(res, { analysis: result.response }, 'Project analyzed successfully');
     } catch (error) {
-        res.status(500).json({ success: false, error: 'Internal server error', message: error.message });
+        return errorResponse(res, 'Internal server error', 500, error);
     }
 };
 
@@ -96,27 +90,18 @@ export const chatWithAI = async (req, res) => {
         const { message, history } = req.body;
         
         if (!message) {
-            return res.status(400).json({
-                success: false,
-                error: 'Message is required'
-            });
+            return errorResponse(res, 'Message is required', 400);
         }
 
         const result = await aiService.chatWithAI(message, history || []);
         
-        // Log activity
         await activityService.logActivity(req.user._id, 'ai_chat', `Chatted with AI: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
         
-        res.status(200).json({
-            success: true,
+        return successResponse(res, {
             reply: result.reply,
             message: result.message
-        });
+        }, 'AI generated response');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            message: error.message
-        });
+        return errorResponse(res, 'Internal server error', 500, error);
     }
 };

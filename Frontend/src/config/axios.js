@@ -3,7 +3,7 @@ import axios from "axios";
 // Standard API instance
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:4001",
-  timeout: 10000,
+  timeout: 15000,
 });
 
 // Interceptor function to add auth token and handle 401 errors
@@ -24,10 +24,16 @@ const addAuthInterceptors = (axiosInstance) => {
     (error) => {
       if (error.response?.status === 401) {
         // Do not logout if the failed request was the login attempt itself
-        if (!error.config.url.includes("/users/login")) {
+        const isLoginRequest = error.config.url.includes("/users/login") || 
+                               error.config.url.includes("/users/register");
+                               
+        if (!isLoginRequest) {
           localStorage.removeItem("ai_token");
           localStorage.removeItem("ai_user");
-          window.location.href = "/login";
+          // Only redirect if not already on login/register page to avoid loops
+          if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/register")) {
+            window.location.href = "/login";
+          }
         }
       }
       return Promise.reject(error);
@@ -41,10 +47,11 @@ addAuthInterceptors(instance);
 // Separate instance for AI requests which may have a longer timeout
 export const aiApi = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:4001",
-  timeout: 60000, // Longer timeout for potentially long-running AI tasks
+  timeout: 120000, // Longer timeout for AI tasks (2 mins)
 });
 
 // Apply the same interceptors to the AI instance
 addAuthInterceptors(aiApi);
 
 export default instance;
+

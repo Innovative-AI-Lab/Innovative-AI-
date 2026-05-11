@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from '../config/axios';
-import { UserContext } from '../context/user.context';
+import { socket, initializeSocket, disconnectSocket } from '../config/socket';
+import { UserContext } from '../context/UserContext';
 import AIChat from '../components/AIChat';
 import FileManager from '../components/FileManager';
 import CodeEditor from '../components/CodeEditor';
@@ -38,7 +39,7 @@ const CopyButton = ({ text }) => {
 ───────────────────────────────────────── */
 const inlineMarkdown = (text) => {
   const parts = [];
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
   let last = 0, match, k = 0;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) parts.push(<span key={k++}>{text.slice(last, match.index)}</span>);
@@ -46,11 +47,13 @@ const inlineMarkdown = (text) => {
     else if (match[3]) parts.push(<em key={k++} style={{ color: '#a1a1aa' }}>{match[3]}</em>);
     else if (match[4]) parts.push(<code key={k++} style={{ padding: '1px 6px', borderRadius: 4, background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', fontSize: '0.75rem', fontFamily: "'JetBrains Mono',monospace" }}>{match[4]}</code>);
     else if (match[5] && match[6]) parts.push(<a key={k++} href={match[6]} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecorationStyle: 'dotted' }}>{match[5]}</a>);
+    else if (match[7]) parts.push(<a key={k++} href={match[7]} target="_blank" rel="noopener noreferrer" style={{ color: '#818cf8', textDecoration: 'underline' }}>{match[7]}</a>);
     last = match.index + match[0].length;
   }
   if (last < text.length) parts.push(<span key={k++}>{text.slice(last)}</span>);
   return parts.length > 0 ? parts : text;
 };
+
 
 /* ─────────────────────────────────────────
    MARKDOWN RENDERER
@@ -111,11 +114,18 @@ const renderMarkdown = (text) => {
    AI HELPERS
 ───────────────────────────────────────── */
 const getAIContent = (msg) => {
-  if (!msg.message?.startsWith('🤖 AI:')) return null;
-  const content = msg.message.slice(6).trim();
+  const message = msg.message || '';
+  if (!message.startsWith('🤖 AI:')) {
+    if (!message.startsWith('🤖 AI Assistant:')) return null;
+  }
+  
+  const prefix = message.startsWith('🤖 AI Assistant:') ? '🤖 AI Assistant:' : '🤖 AI:';
+  const content = message.slice(prefix.length).trim();
+  
   if (content.startsWith('http://') || content.startsWith('https://')) return { type: 'link', url: content };
   return { type: 'text', text: content };
 };
+
 
 /* ─────────────────────────────────────────
    AVATAR
@@ -200,7 +210,7 @@ const MessageBubble = ({ msg, isMe, index }) => {
               ? { background: 'linear-gradient(135deg,#4f46e5,#6366f1)', color: '#fff', boxShadow: '0 3px 14px rgba(99,102,241,0.25)' }
               : { background: '#18181b', color: '#d4d4d8', border: '1px solid rgba(255,255,255,0.06)' })
           }}>
-            {msg.message}
+            {inlineMarkdown(msg.message)}
           </div>
         )}
         <span style={{ fontSize: '0.59rem', color: '#3f3f46', marginTop: 3 }}>
@@ -366,7 +376,10 @@ const Project = () => {
     try {
       const res = await axios.get(`/projects/${currentProjectId}`);
       setProjectData(res.data.data);
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error('Fetch project error:', e); 
+      showToast('Failed to load project details', 'error');
+    }
     finally { setLoading(false); }
   };
 
@@ -374,21 +387,42 @@ const Project = () => {
     if (!currentProjectId) return;
     try {
       const res = await axios.get(`/project-chat/messages/${currentProjectId}`);
-      setMessages(res.data.messages || []);
-    } catch (e) { console.error(e); }
+      setMessages(res.data.data || []); // Standard format: res.data.data
+    } catch (e) { console.error('Fetch messages error:', e); }
   };
 
   useEffect(() => {
-    if (!localStorage.getItem('token')) { navigate('/login'); return; }
+    if (!localStorage.getItem('ai_token')) { navigate('/login'); return; }
+    
     fetchProject();
     fetchMessages();
-    axios.get('/users/all').then(res => setUsers(res.data.users || [])).catch(console.error);
-  }, [currentProjectId]);
+    
+    axios.get('/users/all').then(res => setUsers(res.data.data.users || [])).catch(console.error);
 
-  useEffect(() => {
-    const interval = setInterval(fetchMessages, 3000);
-    return () => clearInterval(interval);
-  }, [currentProjectId]);
+    // Initialize Socket
+    if (user && currentProjectId) {
+      const s = initializeSocket(currentProjectId, user._id, user.displayName || user.email);
+
+      s.on('new-message', (msg) => {
+        setMessages(prev => [...prev, msg]);
+      });
+
+      s.on('user-joined', (data) => {
+        showToast(`${data.username} joined the project`);
+      });
+
+      s.on('member-added', () => {
+        fetchProject();
+      });
+
+      return () => {
+        s.off('new-message');
+        s.off('user-joined');
+        s.off('member-added');
+        disconnectSocket();
+      };
+    }
+  }, [currentProjectId, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -396,12 +430,23 @@ const Project = () => {
 
   const sendMessage = async () => {
     if (!chatInput.trim() || !currentProjectId || sending) return;
+    
+    const messageContent = chatInput;
+    setChatInput('');
     setSending(true);
+    
     try {
-      await axios.post('/project-chat/send', { projectId: currentProjectId, message: chatInput });
-      setChatInput('');
-      fetchMessages();
-    } catch (e) { showToast('Failed to send message', 'error'); }
+      // Save to database and the server will broadcast it via Socket
+      await axios.post('/project-chat/send', { 
+        projectId: currentProjectId, 
+        message: messageContent 
+      });
+      
+      // We don't need to fetch messages here anymore, 
+      // the socket listener will catch the 'new-message' event
+    } catch (e) { 
+      showToast('Failed to send message', 'error'); 
+    }
     finally { setSending(false); }
   };
 
@@ -418,14 +463,18 @@ const Project = () => {
 
       await Promise.all(promises);
 
+      // Emit socket event to notify others
+      socket.emit('project-update', { roomId: currentProjectId, type: 'member-added' });
+
       setIsInviteOpen(false);
       setSelectedUsers(new Set());
       fetchProject();
-      showToast(`${selectedUsers.size} member(s) added successfully`);
+      showToast(`${selectedUsers.size} member(s) added successfully`, 'success');
     } catch (e) {
       showToast(e.response?.data?.message || 'Failed to add users', 'error');
     }
   };
+
 
   const tabs = [
     { id: 'chat',     icon: 'ri-message-3-line',    label: 'Chat'     },
@@ -442,69 +491,36 @@ const Project = () => {
   };
 
   return (
-    <div style={{
-      height: '100vh', display: 'flex', flexDirection: 'column',
-      background: '#0a0a0f', fontFamily: "'DM Sans', sans-serif",
-      overflow: 'hidden', color: '#d4d4d8'
-    }}>
+    <div className="h-screen flex flex-col bg-[#0a0a0f] font-['DM_Sans'] overflow-hidden text-zinc-400">
 
       {/* ══════════════════════════════════════════
           ✦  NAVBAR
       ══════════════════════════════════════════ */}
-      <header style={{
-        flexShrink: 0,
-        background: 'rgba(9,9,14,0.96)',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
-        backdropFilter: 'blur(28px)',
-        WebkitBackdropFilter: 'blur(28px)',
-        zIndex: 50, position: 'relative'
-      }}>
-
+      <header className="flex-shrink-0 bg-[#09090e]/95 border-b border-white/[0.07] backdrop-blur-3xl z-50 sticky top-0">
         {/* ── Main row ── */}
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          height: 54, padding: '0 12px', gap: 8
-        }}>
+        <div className="flex items-center h-14 px-3 md:px-4 gap-2 md:gap-3">
 
           {/* ❶ LEFT ZONE — Back + Project identity */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-
-            {/* Back */}
+          <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
             <NavIconBtn icon="ri-arrow-left-s-line" label="Home" onClick={() => navigate('/')} />
+            <div className="w-[1px] h-5 bg-white/[0.07] hidden sm:block" />
 
-            <VDivider />
-
-            {/* Project icon */}
-            <div style={{
-              width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-              background: 'linear-gradient(135deg,#4338ca,#7c3aed)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 0 1px rgba(99,102,241,0.4), 0 4px 12px rgba(79,70,229,0.25)',
-              position: 'relative'
-            }}>
-              <i className="ri-folders-fill" style={{ color: '#fff', fontSize: 14 }}></i>
-              {/* activity dot — color changes with active tab */}
-              <span style={{
-                position: 'absolute', bottom: -2, right: -2,
-                width: 8, height: 8, borderRadius: '50%',
-                background: TAB_COLORS[activeTab],
-                border: '1.5px solid #09090e',
-                transition: 'background 0.35s ease',
-                boxShadow: `0 0 5px ${TAB_COLORS[activeTab]}`
-              }} />
+            <div className="relative flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-[0_0_20px_rgba(79,70,229,0.3)] border border-white/10">
+              <i className="ri-folders-fill text-white text-sm"></i>
+              <span 
+                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#09090e] shadow-sm transition-all duration-300"
+                style={{ 
+                  background: TAB_COLORS[activeTab],
+                  boxShadow: `0 0 8px ${TAB_COLORS[activeTab]}`
+                }} 
+              />
             </div>
 
-            {/* Project name + member stack */}
-            <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <div className="flex flex-col min-w-0">
               {loading ? (
-                <div style={{ width: 90, height: 12, borderRadius: 5, background: 'rgba(255,255,255,0.06)', animation: 'shimmer 1.4s ease-in-out infinite' }} />
+                <div className="w-24 h-3 rounded bg-white/5 animate-pulse mb-1" />
               ) : (
-                <h1 style={{
-                  fontSize: '0.83rem', fontWeight: 700, color: '#ededf0',
-                  margin: 0, letterSpacing: '-0.015em',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 200,
-                  textTransform: 'capitalize'
-                }}>
+                <h1 className="text-[13px] font-bold text-zinc-100 truncate capitalize tracking-tight leading-tight">
                   {projectData?.name || 'Project'}
                 </h1>
               )}
@@ -513,7 +529,7 @@ const Project = () => {
           </div>
 
           {/* ❷ CENTER ZONE — Tab switcher (desktop) */}
-          <div className="hidden md:flex" style={{ flexShrink: 0 }}>
+          <div className="hidden md:flex flex-shrink-0">
             <TabSwitcher
               tabs={tabs}
               activeTab={activeTab}
@@ -523,7 +539,7 @@ const Project = () => {
           </div>
 
           {/* ❸ RIGHT ZONE — Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flex: 1, justifyContent: 'flex-end' }}>
+          <div className="flex items-center gap-1.5 md:gap-2 flex-1 justify-end">
 
             {/* Invite — desktop */}
             <motion.button
@@ -546,15 +562,15 @@ const Project = () => {
             <VDivider />
 
             {/* Team — mobile */}
-            <NavIconBtn icon="ri-group-line" label="Team" onClick={() => setIsTeamOpen(true)} className="lg:hidden" />
+            <NavIconBtn icon="ri-group-line" label="Team" onClick={() => setIsTeamOpen(true)} className="lg:hidden" active={isTeamOpen} />
 
             {/* AI — mobile */}
-            <NavIconBtn icon="ri-robot-2-line" label="AI Chat" onClick={() => setIsAiOpen(true)} className="lg:hidden" />
+            <NavIconBtn icon="ri-robot-2-line" label="AI Assistant" onClick={() => setIsAiOpen(true)} className="lg:hidden" active={isAiOpen} />
 
             {/* AI toggle — desktop */}
             <NavIconBtn
               icon="ri-robot-2-line"
-              label={isDesktopAiOpen ? 'Hide AI Panel' : 'Show AI Panel'}
+              label={isDesktopAiOpen ? 'Hide AI' : 'Show AI'}
               onClick={() => setIsDesktopAiOpen(v => !v)}
               active={isDesktopAiOpen}
               className="hidden lg:flex"
@@ -563,9 +579,7 @@ const Project = () => {
         </div>
 
         {/* ── MOBILE Tab row ── */}
-        <div className="md:hidden" style={{
-          display: 'flex', borderTop: '1px solid rgba(255,255,255,0.055)',
-        }}>
+        <div className="md:hidden flex border-t border-white/[0.05]">
           {tabs.map(tab => {
             const active = activeTab === tab.id;
             const color = TAB_COLORS[tab.id];
@@ -573,17 +587,11 @@ const Project = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                  padding: '7px 0 8px', gap: 2, border: 'none', cursor: 'pointer',
-                  background: 'none', fontFamily: "'DM Sans', sans-serif", transition: 'all 0.15s',
-                  color: active ? '#e4e4e7' : '#35353f',
-                  borderBottom: active ? `2px solid ${color}` : '2px solid transparent',
-                  borderTop: 'none', borderLeft: 'none', borderRight: 'none',
-                }}
+                className={`flex-1 flex flex-col items-center py-2 gap-0.5 transition-all duration-200 border-b-2
+                  ${active ? 'text-zinc-100 border-violet-500 bg-white/[0.02]' : 'text-zinc-600 border-transparent hover:text-zinc-400'}`}
               >
-                <i className={tab.icon} style={{ fontSize: 15 }}></i>
-                <span style={{ fontSize: '0.58rem', fontWeight: active ? 700 : 400, letterSpacing: '0.01em' }}>{tab.label}</span>
+                <i className={`${tab.icon} text-base`}></i>
+                <span className="text-[10px] font-bold tracking-tight">{tab.label}</span>
               </button>
             );
           })}
@@ -596,32 +604,29 @@ const Project = () => {
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* Team Sidebar — Desktop */}
-        <aside className="hidden lg:flex" style={{
-          flexDirection: 'column', width: 210, flexShrink: 0,
-          background: '#0b0b12', borderRight: '1px solid rgba(255,255,255,0.05)'
-        }}>
-          <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.64rem', fontWeight: 700, color: '#2e2e3c', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Team</span>
-            <NavIconBtn icon="ri-user-add-line" label="Invite" onClick={() => setIsInviteOpen(true)} />
+        <aside className="hidden lg:flex flex-col w-[240px] flex-shrink-0 bg-[#0b0b12] border-r border-white/[0.05]">
+          <div className="px-4 py-3 border-b border-white/[0.05] flex items-center justify-between bg-white/[0.01]">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Team</span>
+            <button onClick={() => setIsInviteOpen(true)} className="w-7 h-7 rounded-lg hover:bg-white/5 flex items-center justify-center text-zinc-500 hover:text-indigo-400 transition-all">
+              <i className="ri-user-add-line text-sm"></i>
+            </button>
           </div>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '6px 7px' }}>
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5 custom-scrollbar">
             {projectData?.users?.map((u, idx) => (
-              <motion.div key={u._id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 7px', borderRadius: 9, cursor: 'default', transition: 'background 0.12s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              <motion.div key={u._id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.05 }}
+                className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.03] transition-all group"
               >
-                <Avatar user={u} size={26} />
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: '0.72rem', fontWeight: 600, color: '#c0c0cc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.displayName || u.email?.split('@')[0]}</p>
-                  <p style={{ fontSize: '0.61rem', color: '#2e2e3c', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
+                <Avatar user={u} size={28} />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-zinc-300 truncate">{u.displayName || u.email?.split('@')[0]}</p>
+                  <p className="text-[10px] text-zinc-600 truncate">{u.email}</p>
                 </div>
               </motion.div>
             ))}
             {(!projectData?.users || projectData.users.length === 0) && (
-              <div style={{ textAlign: 'center', padding: '22px 8px' }}>
-                <i className="ri-team-line" style={{ fontSize: 22, color: '#1a1a24', display: 'block', marginBottom: 6 }}></i>
-                <p style={{ fontSize: '0.68rem', color: '#22222c', margin: 0 }}>No members yet</p>
+              <div className="text-center py-10 opacity-20">
+                <i className="ri-team-line text-3xl mb-2 block"></i>
+                <p className="text-[10px]">No members</p>
               </div>
             )}
           </div>
@@ -671,15 +676,31 @@ const Project = () => {
               </motion.div>
             )}
             {activeTab === 'files' && (
-              <motion.div key="files" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-                <div style={{ width: 240, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,0.05)', overflowY: 'auto' }}>
-                  <FileManager projectId={currentProjectId} onFileSelect={setSelectedFile} />
+              <motion.div key="files" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 flex overflow-hidden">
+                <div className="w-full md:w-[260px] flex-shrink-0 border-r border-white/[0.05] bg-black/20 overflow-y-auto">
+                  <FileManager 
+                    projectId={currentProjectId} 
+                    onFileSelect={(file) => {
+                      setSelectedFile(file);
+                      // Auto-switch to editor on mobile
+                      if (window.innerWidth < 768) setActiveTab('editor');
+                    }} 
+                  />
                 </div>
-                <div style={{ flex: 1, overflow: 'hidden' }}><CodeEditor selectedFile={selectedFile} /></div>
+                <div className="hidden md:block flex-1 overflow-hidden">
+                  <CodeEditor selectedFile={selectedFile} />
+                </div>
               </motion.div>
             )}
             {activeTab === 'editor' && (
-              <motion.div key="editor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} style={{ flex: 1, overflow: 'hidden' }}>
+              <motion.div key="editor" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex-1 overflow-hidden relative">
+                {/* Back to files button for mobile */}
+                <button 
+                  onClick={() => setActiveTab('files')}
+                  className="md:hidden absolute top-3 left-3 z-10 w-8 h-8 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-white"
+                >
+                  <i className="ri-folder-3-line"></i>
+                </button>
                 <CodeEditor selectedFile={selectedFile} />
               </motion.div>
             )}
@@ -694,10 +715,13 @@ const Project = () => {
         {/* AI Sidebar — Desktop */}
         <AnimatePresence>
           {isDesktopAiOpen && (
-            <motion.aside className="hidden lg:flex" key="ai-sidebar"
-              initial={{ width: 0, opacity: 0 }} animate={{ width: 340, opacity: 1 }} exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              style={{ flexDirection: 'column', flexShrink: 0, background: '#0b0b12', borderLeft: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+            <motion.aside className="hidden lg:flex flex-col flex-shrink-0 bg-[#0b0b12] border-l border-white/[0.05] overflow-hidden"
+              key="ai-sidebar"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 340, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            >
               <AIChat projectId={currentProjectId} />
             </motion.aside>
           )}
@@ -709,35 +733,34 @@ const Project = () => {
       ══════════════════════════════════════════ */}
       <AnimatePresence>
         {isTeamOpen && (
-          <div className="lg:hidden" style={{ position: 'fixed', inset: 0, zIndex: 40 }}>
+          <div className="lg:hidden fixed inset-0 z-[100]">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsTeamOpen(false)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }} />
-            <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: 272, background: '#0b0b12', borderRight: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '14px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontWeight: 700, color: '#f4f4f5', margin: 0, fontSize: '0.86rem' }}>Team Members</h2>
-                <NavIconBtn icon="ri-close-line" label="Close" onClick={() => setIsTeamOpen(false)} />
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.aside initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="absolute left-0 top-0 h-full w-[280px] bg-[#0b0b12] border-r border-white/10 flex flex-col shadow-2xl"
+            >
+              <div className="p-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+                <h2 className="font-bold text-zinc-100 text-sm tracking-tight">Team Members</h2>
+                <button onClick={() => setIsTeamOpen(false)} className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-zinc-500">
+                  <i className="ri-close-line text-lg"></i>
+                </button>
               </div>
-              <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+              <div className="flex-1 overflow-y-auto p-3 space-y-1">
                 {projectData?.users?.map(u => (
-                  <div key={u._id} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '7px 8px', borderRadius: 9 }}>
-                    <Avatar user={u} size={30} />
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#d4d4d8', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.displayName || u.email?.split('@')[0]}</p>
-                      <p style={{ fontSize: '0.64rem', color: '#52525b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
+                  <div key={u._id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/[0.03]">
+                    <Avatar user={u} size={32} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-zinc-300 truncate">{u.displayName || u.email?.split('@')[0]}</p>
+                      <p className="text-[10px] text-zinc-600 truncate">{u.email}</p>
                     </div>
                   </div>
                 ))}
               </div>
-              <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                <button onClick={() => { setIsTeamOpen(false); setIsInviteOpen(true); }} style={{
-                  width: '100%', padding: '10px', borderRadius: 10,
-                  background: 'linear-gradient(135deg,#4f46e5,#6366f1)', color: '#fff',
-                  fontSize: '0.78rem', fontWeight: 600, border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  fontFamily: "'DM Sans', sans-serif", boxShadow: '0 3px 12px rgba(99,102,241,0.3)'
-                }}>
+              <div className="p-4 border-t border-white/5">
+                <button onClick={() => { setIsTeamOpen(false); setIsInviteOpen(true); }} 
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
                   <i className="ri-user-add-line"></i> Invite Members
                 </button>
               </div>
@@ -748,12 +771,13 @@ const Project = () => {
 
       <AnimatePresence>
         {isAiOpen && (
-          <div className="lg:hidden" style={{ position: 'fixed', inset: 0, zIndex: 40 }}>
+          <div className="lg:hidden fixed inset-0 z-[100]">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsAiOpen(false)}
-              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }} />
-            <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: '100%', maxWidth: 380, background: '#0b0b12', borderLeft: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column' }}>
+              className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+            <motion.aside initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 28, stiffness: 250 }}
+              className="absolute right-0 top-0 h-full w-full max-w-[360px] bg-[#0b0b12] border-l border-white/10 flex flex-col shadow-2xl"
+            >
               <AIChat projectId={currentProjectId} onClose={() => setIsAiOpen(false)} />
             </motion.aside>
           </div>
@@ -765,78 +789,73 @@ const Project = () => {
       ══════════════════════════════════════════ */}
       <AnimatePresence>
         {isInviteOpen && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(12px)', padding: 16 }}
-            onClick={e => e.target === e.currentTarget && setIsInviteOpen(false)}>
-            <motion.div initial={{ opacity: 0, scale: 0.94, y: 14 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.94, y: 14 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-              style={{ background: '#0d0d16', borderRadius: 16, border: '1px solid rgba(255,255,255,0.09)', width: '100%', maxWidth: 428, boxShadow: '0 32px 80px rgba(0,0,0,0.7)' }}>
-              <div style={{ padding: '16px 17px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsInviteOpen(false)}
+              className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+            
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-[#0d0d16] rounded-2xl border border-white/10 shadow-[0_32px_64px_rgba(0,0,0,0.6)] overflow-hidden"
+            >
+              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                 <div>
-                  <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f4f4f5', margin: '0 0 2px' }}>Invite Members</h2>
-                  <p style={{ fontSize: '0.68rem', color: '#52525b', margin: 0 }}>Select users to add to this project</p>
+                  <h2 className="text-sm font-bold text-zinc-100 tracking-tight">Invite Members</h2>
+                  <p className="text-[10px] text-zinc-500 mt-0.5">Add collaborators to your workspace</p>
                 </div>
-                <NavIconBtn icon="ri-close-line" label="Close" onClick={() => { setIsInviteOpen(false); setSelectedUsers(new Set()); }} />
+                <button onClick={() => { setIsInviteOpen(false); setSelectedUsers(new Set()); }} className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center text-zinc-500">
+                  <i className="ri-close-line text-lg"></i>
+                </button>
               </div>
-              <div style={{ maxHeight: 264, overflowY: 'auto', padding: '8px 10px' }}>
+
+              <div className="max-h-[300px] overflow-y-auto p-2 custom-scrollbar">
                 {users.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '26px 0' }}>
-                    <i className="ri-user-search-line" style={{ fontSize: 24, color: '#27272a', display: 'block', marginBottom: 6 }}></i>
-                    <p style={{ fontSize: '0.74rem', color: '#3f3f46', margin: 0 }}>No other users found</p>
+                  <div className="py-12 text-center opacity-30">
+                    <i className="ri-user-search-line text-4xl mb-2 block"></i>
+                    <p className="text-xs">No users found</p>
                   </div>
                 ) : users.map(u => {
                   const alreadyMember = projectData?.users?.some(m => m._id === u._id);
                   const isSelected = selectedUsers.has(u._id);
                   return (
-                    <label key={u._id} style={{
-                      display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', borderRadius: 10,
-                      cursor: alreadyMember ? 'not-allowed' : 'pointer', opacity: alreadyMember ? 0.4 : 1,
-                      marginBottom: 3, background: isSelected ? 'rgba(99,102,241,0.08)' : 'transparent',
-                      border: `1px solid ${isSelected ? 'rgba(99,102,241,0.22)' : 'transparent'}`, transition: 'all 0.12s'
-                    }}>
-                      <div style={{
-                        width: 16, height: 16, borderRadius: 5, flexShrink: 0, transition: 'all 0.12s',
-                        background: isSelected ? '#6366f1' : 'rgba(255,255,255,0.06)',
-                        border: `1.5px solid ${isSelected ? '#6366f1' : 'rgba(255,255,255,0.1)'}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center'
-                      }}>
-                        {isSelected && <i className="ri-check-line" style={{ fontSize: 9, color: '#fff' }}></i>}
-                        <input type="checkbox" checked={isSelected} disabled={alreadyMember}
-                          onChange={() => {
-                            if (alreadyMember) return;
-                            const next = new Set(selectedUsers);
-                            next.has(u._id) ? next.delete(u._id) : next.add(u._id);
-                            setSelectedUsers(next);
-                          }} style={{ display: 'none' }} />
+                    <label key={u._id} className={`flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer mb-0.5
+                      ${alreadyMember ? 'opacity-40 cursor-not-allowed' : isSelected ? 'bg-indigo-500/10 border-indigo-500/20 border' : 'hover:bg-white/[0.03] border border-transparent'}`}
+                    >
+                      <input type="checkbox" checked={isSelected} disabled={alreadyMember}
+                        onChange={() => {
+                          if (alreadyMember) return;
+                          const next = new Set(selectedUsers);
+                          next.has(u._id) ? next.delete(u._id) : next.add(u._id);
+                          setSelectedUsers(next);
+                        }} className="hidden" />
+                      
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all
+                        ${isSelected ? 'bg-indigo-600 border-indigo-500' : 'bg-white/5 border-white/10'}`}>
+                        {isSelected && <i className="ri-check-line text-xs text-white"></i>}
                       </div>
-                      <Avatar user={u} size={28} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: '0.76rem', fontWeight: 600, color: '#d4d4d8', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.displayName || u.email?.split('@')[0]}</p>
-                        <p style={{ fontSize: '0.63rem', color: '#52525b', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</p>
+
+                      <Avatar user={u} size={32} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-zinc-200 truncate">{u.displayName || u.email?.split('@')[0]}</p>
+                        <p className="text-[10px] text-zinc-600 truncate">{u.email}</p>
                       </div>
-                      {alreadyMember && <span style={{ fontSize: '0.6rem', fontWeight: 600, color: '#22c55e', background: 'rgba(34,197,94,0.1)', padding: '2px 7px', borderRadius: 20, flexShrink: 0 }}>Member</span>}
+                      {alreadyMember && <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[9px] font-bold">Member</span>}
                     </label>
                   );
                 })}
               </div>
-              <div style={{ padding: '12px 13px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: 8 }}>
-                <button onClick={() => { setIsInviteOpen(false); setSelectedUsers(new Set()); }}
-                  style={{ flex: 1, padding: '9px', borderRadius: 9, background: 'rgba(255,255,255,0.05)', color: '#71717a', border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', fontSize: '0.76rem', fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+
+              <div className="p-4 border-t border-white/5 bg-white/[0.01] flex gap-3">
+                <button onClick={() => setIsInviteOpen(false)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-xs font-semibold text-zinc-500 hover:bg-white/5 transition-all">
                   Cancel
                 </button>
-                <button onClick={addUsers} disabled={selectedUsers.size === 0} style={{
-                  flex: 1, padding: '9px', borderRadius: 9, border: 'none',
-                  cursor: selectedUsers.size > 0 ? 'pointer' : 'not-allowed',
-                  background: selectedUsers.size > 0 ? 'linear-gradient(135deg,#4f46e5,#6366f1)' : 'rgba(255,255,255,0.05)',
-                  color: selectedUsers.size > 0 ? '#fff' : '#3f3f46',
-                  fontSize: '0.76rem', fontWeight: 600, transition: 'all 0.18s', fontFamily: "'DM Sans', sans-serif",
-                  boxShadow: selectedUsers.size > 0 ? '0 2px 12px rgba(99,102,241,0.28)' : 'none'
-                }}>
-                  {selectedUsers.size > 0 ? `Add ${selectedUsers.size} Member${selectedUsers.size > 1 ? 's' : ''}` : 'Select Members'}
+                <button onClick={addUsers} disabled={selectedUsers.size === 0}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white text-xs font-bold shadow-lg shadow-indigo-500/20 disabled:opacity-30 disabled:shadow-none transition-all active:scale-[0.98]"
+                >
+                  {selectedUsers.size > 0 ? `Add ${selectedUsers.size} Users` : 'Select Users'}
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

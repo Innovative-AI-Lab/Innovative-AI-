@@ -1,12 +1,13 @@
 import notificationService from '../services/notification.service.js';
+import { successResponse, errorResponse } from '../utils/response.util.js';
 
 export const createNotification = async (req, res) => {
     try {
         const { type, title, message, data } = req.body;
         const notification = await notificationService.createNotification(req.user._id, type, title, message, data);
-        res.status(201).json({ success: true, notification });
+        return successResponse(res, notification, 'Notification created', 201);
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
@@ -18,9 +19,9 @@ export const getNotifications = async (req, res) => {
             parseInt(limit) || 50,
             unreadOnly === 'true'
         );
-        res.status(200).json({ success: true, notifications });
+        return successResponse(res, { notifications }, 'Notifications retrieved');
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
@@ -29,28 +30,28 @@ export const markAsRead = async (req, res) => {
         const { id } = req.params;
         const notification = await notificationService.markAsRead(id, req.user._id);
         if (!notification) {
-            return res.status(404).json({ success: false, error: 'Notification not found' });
+            return errorResponse(res, 'Notification not found', 404);
         }
-        res.status(200).json({ success: true, notification });
+        return successResponse(res, notification, 'Notification marked as read');
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
 export const markAllAsRead = async (req, res) => {
     try {
         await notificationService.markAllAsRead(req.user._id);
-        res.status(200).json({ success: true, message: 'All notifications marked as read' });
+        return successResponse(res, null, 'All notifications marked as read');
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
 export const getUnreadCount = async (req, res) => {
     try {
         const count = await notificationService.getUnreadCount(req.user._id);
-        res.status(200).json({ success: true, count });
+        return successResponse(res, { count }, 'Unread count retrieved');
     } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+        return errorResponse(res, error.message, 500, error);
     }
-};
+};

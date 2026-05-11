@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "../config/axios";
-import { UserContext } from "../context/user.context";
+import { UserContext } from "../context/UserContext";
 import { motion, AnimatePresence } from "framer-motion";
 
 
@@ -234,21 +234,17 @@ export default function Login() {
       .then((res) => {
           console.log("LOGIN SUCCESS:", res.data);
           setError("");
- login(res.data.user, res.data.token); 
-        navigate("/");
+          // New standard format: res.data.data contains { user, token }
+          const { user, token } = res.data.data || res.data;
+          login(user, token); 
+          navigate("/");
       })
-.catch((err) => {
-  console.log("LOGIN ERROR:", err);
+      .catch((err) => {
+        console.log("LOGIN ERROR:", err);
+        if (!err.response) return setError("Network error. Please check your connection.");
+        setError(err.response?.data?.message || "Invalid email or password");
+      })
 
-  // ❌ Agar success ke baad aaye toh ignore karo
-  if (!err.response) return;
-
-  setError(
-    err.response?.data?.message ||
-    err.response?.data?.error ||
-    "Invalid email or password"
-  );
-})
       .finally(() => setLoading(false));
   };
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import io from 'socket.io-client';
 import axios from '../../config/axios';
-import { UserContext } from '../../context/user.context';
+import { UserContext } from '../../context/UserContext';
 import PageView from '../common/PageView';
 import { BRAND } from '../../constants';
 
@@ -251,15 +251,15 @@ function ActivityView({ projects, displayName }) {
     <PageView>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
             <h2 className="text-2xl font-bold text-zinc-100 tracking-tight">Activity Hub</h2>
-            <p className="text-[12px] text-zinc-600 mt-0.5">Monitor, analyze, and manage all platform activities</p>
+            <p className="text-[12px] text-zinc-600 mt-0.5">Monitor, analyze, and manage platform activities</p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* View Mode Toggle */}
-            <div className="flex bg-white/[0.05] rounded-lg p-1">
+            <div className="flex flex-1 sm:flex-initial bg-white/[0.03] border border-white/[0.06] rounded-xl p-1">
               {[
                 { id: 'feed', label: 'Feed', icon: '📋' },
                 { id: 'analytics', label: 'Analytics', icon: '📊' },
@@ -268,47 +268,45 @@ function ActivityView({ projects, displayName }) {
                 <button
                   key={mode.id}
                   onClick={() => setViewMode(mode.id)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-1.5
+                  className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2
                     ${viewMode === mode.id
-                      ? 'bg-violet-500/20 text-violet-300 shadow-sm'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05]'}`}
+                      ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/20'
+                      : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]'}`}
                 >
-                  <span>{mode.icon}</span>
-                  {mode.label}
+                  <span className="text-sm">{mode.icon}</span>
+                  <span className="hidden sm:inline">{mode.label}</span>
                 </button>
               ))}
             </div>
 
-            {/* Real-time Toggle */}
-            <button
-              onClick={() => setRealTimeEnabled(!realTimeEnabled)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5
-                ${realTimeEnabled
-                  ? 'bg-emerald-500/20 text-emerald-400'
-                  : 'bg-zinc-700 text-zinc-400'}`}
-            >
-              <span className="relative flex h-2 w-2">
-                {realTimeEnabled && (
-                  <>
-                    <span className="animate-ping absolute inset-0 rounded-full bg-emerald-400 opacity-60" />
-                    <span className="relative rounded-full h-2 w-2 bg-emerald-500" />
-                  </>
-                )}
-              </span>
-              Live
-            </button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {/* Real-time Toggle */}
+              <button
+                onClick={() => setRealTimeEnabled(!realTimeEnabled)}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border
+                  ${realTimeEnabled
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                    : 'bg-zinc-800/50 border-white/[0.06] text-zinc-500'}`}
+              >
+                <span className="relative flex h-2 w-2">
+                  {realTimeEnabled && <span className="animate-ping absolute inset-0 rounded-full bg-emerald-400 opacity-60" />}
+                  <span className={`relative rounded-full h-2 w-2 ${realTimeEnabled ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+                </span>
+                Live Updates
+              </button>
 
-            {/* Filters Toggle */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5
-                ${showFilters
-                  ? 'bg-violet-500/20 text-violet-300'
-                  : 'bg-white/[0.05] text-zinc-400 hover:text-zinc-200'}`}
-            >
-              <span>🔍</span>
-              Filters
-            </button>
+              {/* Filters Toggle */}
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 border
+                  ${showFilters
+                    ? 'bg-violet-500/10 border-violet-500/20 text-violet-400'
+                    : 'bg-white/[0.03] border-white/[0.06] text-zinc-400 hover:text-zinc-200'}`}
+              >
+                <i className="ri-filter-3-line text-sm"></i>
+                Filters
+              </button>
+            </div>
           </div>
         </div>
 

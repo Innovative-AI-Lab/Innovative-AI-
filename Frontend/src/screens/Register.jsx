@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserContext } from '../context/user.context';
+import { UserContext } from '../context/UserContext';
 import axios from '../config/axios';
 import Footer from '../components/Footer';
 
@@ -49,16 +49,18 @@ export default function Register() {
       password,
     })
       .then((res) => {
-        const { token, user: userData } = res.data;
-        if (!token || !userData) {
+        // New standard format: res.data.data contains { user, token }
+        const { user, token } = res.data.data || res.data;
+        
+        if (!token || !user) {
           setError('Invalid register response: missing data.');
           return;
         }
 
-        localStorage.setItem('token', token);
-        login(userData, token);
+        login(user, token);
         navigate('/');
       })
+
       .catch((err) => {
         const errData = err.response?.data;
         if (errData?.errors) setError(errData.errors[0]?.msg || 'Registration failed.');

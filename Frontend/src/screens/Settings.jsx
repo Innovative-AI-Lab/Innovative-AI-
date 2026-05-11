@@ -1,834 +1,464 @@
-import { FiArrowLeft } from 'react-icons/fi';
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserContext } from '../context/user.context';
+import { 
+  FiArrowLeft, 
+  FiUser, 
+  FiSettings, 
+  FiShield, 
+  FiCpu, 
+  FiBell, 
+  FiUsers, 
+  FiCheck, 
+  FiCamera, 
+  FiLock, 
+  FiEye, 
+  FiEyeOff, 
+  FiLoader, 
+  FiChevronRight,
+  FiLayout,
+  FiMoon,
+  FiSmartphone,
+  FiCreditCard,
+  FiMenu,
+  FiX
+} from 'react-icons/fi';
+import { UserContext } from '../context/UserContext';
 import api from '../config/axios';
-import Footer from '../components/Footer';
-
-/*
-  ─────────────────────────────────────────────
-  Add to index.html <head>:
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-  ─────────────────────────────────────────────
-*/
-
-const defaultSettings = { theme: 'dark', fontSize: 14, autoSave: true, aiAssistance: true };
 
 const TABS = [
-  { id: 'profile',     label: 'Profile',      icon: 'ri-user-3-line',         color: '#f59e0b' },
-  { id: 'preferences', label: 'Preferences',  icon: 'ri-palette-line',        color: '#10b981' },
-  { id: 'ai',          label: 'AI Settings',  icon: 'ri-robot-2-line',        color: '#6366f1' },
-  { id: 'security',    label: 'Security',     icon: 'ri-shield-keyhole-line', color: '#ef4444' },
+  { id: 'profile',     label: 'Account Profile', icon: <FiUser />,      color: 'text-amber-500',   bg: 'bg-amber-500/10' },
+  { id: 'preferences', label: 'Appearance',      icon: <FiLayout />,    color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { id: 'ai',          label: 'AI Studio',       icon: <FiCpu />,       color: 'text-indigo-500',  bg: 'bg-indigo-500/10' },
+  { id: 'security',    label: 'Security',        icon: <FiShield />,    color: 'text-red-500',     bg: 'bg-red-500/10' },
+  { id: 'notifications',label: 'Notifications',  icon: <FiBell />,      color: 'text-pink-500',    bg: 'bg-pink-500/10' },
+  { id: 'collaboration',label: 'Team Members',   icon: <FiUsers />,     color: 'text-blue-500',    bg: 'bg-blue-500/10' },
+  { id: 'billing',     label: 'Subscription',    icon: <FiCreditCard />, color: 'text-purple-500',  bg: 'bg-purple-500/10' },
 ];
 
-/* ─────────────────────────────────────────────
-   DESIGN TOKENS
-───────────────────────────────────────────── */
-const T = {
-  bg:         '#0d0d10',
-  surface:    '#131318',
-  surfaceHi:  '#1a1a22',
-  border:     'rgba(255,255,255,0.07)',
-  borderHi:   'rgba(255,255,255,0.13)',
-  text:       '#f0f0f4',
-  textMuted:  '#6b6b7a',
-  textDim:    '#3a3a48',
-  amber:      '#f59e0b',
-  amberDim:   'rgba(245,158,11,0.12)',
-  amberBorder:'rgba(245,158,11,0.25)',
+const DEFAULT_SETTINGS = {
+  theme: 'dark',
+  fontSize: 14,
+  autoSave: true,
+  aiAssistance: true,
+  compactView: false,
+  inlineSuggestions: true,
+  errorExplain: true,
+  notifications: { email: true, push: true, updates: false },
+  aiModel: 'gemini-1.5-flash',
+  role: 'developer'
 };
 
 /* ─────────────────────────────────────────────
-   PRIMITIVES
+   REUSABLE UI COMPONENTS
 ───────────────────────────────────────────── */
 
-const Label = ({ children }) => (
-  <label style={{
-    display: 'block', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em',
-    textTransform: 'uppercase', color: T.textMuted, marginBottom: 7,
-    fontFamily: "'Geist Mono', monospace"
-  }}>
+const SectionTitle = ({ title, subtitle }) => (
+  <div className="mb-6 md:mb-8">
+    <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight">{title}</h2>
+    {subtitle && <p className="text-xs md:text-sm text-gray-500 mt-1">{subtitle}</p>}
+  </div>
+);
+
+const SettingCard = ({ children, className = "" }) => (
+  <div className={`bg-white/[0.03] border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-6 ${className}`}>
     {children}
-  </label>
-);
-
-const StudioInput = ({ label, error, ...props }) => (
-  <div>
-    {label && <Label>{label}</Label>}
-    <input
-      {...props}
-      style={{
-        width: '100%', padding: '9px 13px',
-        background: T.bg, border: `1px solid ${error ? '#ef444460' : T.border}`,
-        borderRadius: 9, color: T.text, fontSize: '0.83rem',
-        outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
-        fontFamily: "'Syne', sans-serif",
-        caretColor: T.amber,
-        boxSizing: 'border-box',
-      }}
-      onFocus={e => {
-        e.target.style.borderColor = T.amberBorder;
-        e.target.style.boxShadow = `0 0 0 3px ${T.amberDim}`;
-      }}
-      onBlur={e => {
-        e.target.style.borderColor = error ? '#ef444460' : T.border;
-        e.target.style.boxShadow = 'none';
-      }}
-    />
-    {error && <p style={{ fontSize: '0.7rem', color: '#ef4444', marginTop: 4 }}>{error}</p>}
   </div>
 );
 
-const StudioTextarea = ({ label, maxLen, value, ...props }) => (
-  <div>
-    {label && <Label>{label}</Label>}
-    <div style={{ position: 'relative' }}>
-      <textarea
-        value={value}
+const FormInput = ({ label, icon, ...props }) => (
+  <div className="space-y-2">
+    {label && <label className="text-[10px] md:text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">{label}</label>}
+    <div className="relative group">
+      {icon && <div className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-amber-500 transition-colors">{icon}</div>}
+      <input
         {...props}
-        style={{
-          width: '100%', padding: '10px 13px',
-          background: T.bg, border: `1px solid ${T.border}`,
-          borderRadius: 9, color: T.text, fontSize: '0.83rem',
-          outline: 'none', resize: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
-          fontFamily: "'Syne', sans-serif", lineHeight: 1.6,
-          caretColor: T.amber, boxSizing: 'border-box',
-          paddingBottom: 28,
-        }}
-        onFocus={e => { e.target.style.borderColor = T.amberBorder; e.target.style.boxShadow = `0 0 0 3px ${T.amberDim}`; }}
-        onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; }}
+        className={`w-full bg-black/20 border border-white/5 rounded-lg md:rounded-xl py-2.5 md:py-3 ${icon ? 'pl-10 md:pl-11' : 'px-3 md:px-4'} pr-4 text-xs md:text-sm text-white outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/5 transition-all`}
       />
-      {maxLen && (
-        <span style={{
-          position: 'absolute', bottom: 9, right: 11,
-          fontSize: '0.62rem', color: (value?.length || 0) > maxLen * 0.85 ? T.amber : T.textDim,
-          fontFamily: "'Geist Mono', monospace", transition: 'color 0.2s'
-        }}>
-          {value?.length || 0}/{maxLen}
-        </span>
-      )}
     </div>
   </div>
 );
 
-const StudioSelect = ({ label, value, onChange, name, options }) => (
-  <div>
-    {label && <Label>{label}</Label>}
-    <div style={{ position: 'relative' }}>
-      <select
-        name={name} value={value} onChange={onChange}
-        style={{
-          width: '100%', padding: '9px 34px 9px 13px',
-          background: T.bg, border: `1px solid ${T.border}`,
-          borderRadius: 9, color: T.text, fontSize: '0.83rem',
-          outline: 'none', cursor: 'pointer', appearance: 'none',
-          fontFamily: "'Syne', sans-serif", transition: 'border-color 0.15s',
-          boxSizing: 'border-box',
-        }}
-        onFocus={e => { e.target.style.borderColor = T.amberBorder; }}
-        onBlur={e => { e.target.style.borderColor = T.border; }}
-      >
-        {options.map(o => <option key={o.value} value={o.value} style={{ background: T.surface }}>{o.label}</option>)}
-      </select>
-      <i className="ri-arrow-down-s-line" style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, fontSize: 16, pointerEvents: 'none' }}></i>
+const ToggleSwitch = ({ checked, onChange, label, desc, color = "bg-amber-500" }) => (
+  <div className="flex items-center justify-between py-2 gap-4">
+    <div className="min-w-0">
+      <p className="text-xs md:text-sm font-semibold text-gray-200 truncate">{label}</p>
+      {desc && <p className="text-[10px] md:text-[12px] text-gray-500 leading-tight">{desc}</p>}
     </div>
+    <button
+      onClick={() => onChange(!checked)}
+      className={`relative w-8 md:w-10 h-4 md:h-5 rounded-full transition-colors shrink-0 ${checked ? color : 'bg-white/10'}`}
+    >
+      <motion.div
+        animate={{ x: checked ? (window.innerWidth < 768 ? 16 : 22) : 2 }}
+        className="absolute top-0.5 md:top-1 w-3 h-3 rounded-full bg-white shadow-lg"
+      />
+    </button>
   </div>
 );
 
-const Toggle = ({ checked, onChange, name, accent = T.amber }) => (
-  <label style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
-    <input type="checkbox" name={name} checked={checked} onChange={onChange} style={{ display: 'none' }} />
-    <div style={{
-      width: 44, height: 24, borderRadius: 99,
-      background: checked ? accent : T.surfaceHi,
-      border: `1px solid ${checked ? accent : T.border}`,
-      transition: 'all 0.22s', position: 'relative',
-      boxShadow: checked ? `0 0 12px ${accent}55` : 'none'
-    }}>
-      <div style={{
-        position: 'absolute', top: 3, left: checked ? 22 : 3,
-        width: 16, height: 16, borderRadius: '50%',
-        background: checked ? '#fff' : T.textMuted,
-        transition: 'left 0.22s, background 0.22s',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.4)'
-      }} />
-    </div>
-  </label>
-);
-
-const SettingRow = ({ icon, title, desc, children, accent }) => (
-  <motion.div
-    variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-    style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '14px 0', borderBottom: `1px solid ${T.border}`, gap: 16
-    }}
-  >
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, minWidth: 0 }}>
-      {icon && (
-        <div style={{
-          width: 30, height: 30, borderRadius: 8, flexShrink: 0, marginTop: 1,
-          background: `${accent || T.amber}15`,
-          border: `1px solid ${accent || T.amber}25`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <i className={icon} style={{ fontSize: 13, color: accent || T.amber }}></i>
-        </div>
-      )}
-      <div>
-        <p style={{ fontSize: '0.83rem', fontWeight: 600, color: T.text, margin: 0 }}>{title}</p>
-        <p style={{ fontSize: '0.72rem', color: T.textMuted, margin: '2px 0 0', lineHeight: 1.5 }}>{desc}</p>
-      </div>
-    </div>
-    <div style={{ flexShrink: 0 }}>{children}</div>
-  </motion.div>
-);
-
-/* Inline status pill */
-const StatusPill = ({ type, message }) => {
-  if (!message) return null;
-  const cfg = {
-    success: { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.25)', color: '#34d399', icon: 'ri-check-double-line' },
-    error:   { bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.25)',  color: '#f87171', icon: 'ri-error-warning-line' },
-  }[type] || {};
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -8, scale: 0.97 }} animate={{ opacity: 1, x: 0, scale: 1 }} exit={{ opacity: 0, x: -8 }}
-      style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 12px', borderRadius: 8,
-        background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color,
-        fontSize: '0.76rem', fontWeight: 500, fontFamily: "'Syne', sans-serif"
-      }}
-    >
-      <i className={cfg.icon}></i>{message}
-    </motion.div>
-  );
-};
-
 /* ─────────────────────────────────────────────
-   PROFILE TAB
+   TAB PANELS
 ───────────────────────────────────────────── */
-const ProfileTab = ({ formData, handleChange }) => (
-  <motion.div variants={{ show: { transition: { staggerChildren: 0.06 } } }} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-    {/* Avatar row */}
-    <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 16, padding: '16px',
-        background: T.surfaceHi, borderRadius: 12, border: `1px solid ${T.border}`
-      }}
-    >
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <img
-          src={formData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.displayName || formData.email)}&background=f59e0b&color=000&size=80&bold=true`}
-          alt="Avatar"
-          style={{ width: 60, height: 60, borderRadius: 14, objectFit: 'cover', border: `2px solid ${T.amberBorder}`, display: 'block' }}
-        />
-        <div style={{
-          position: 'absolute', bottom: -4, right: -4,
-          width: 20, height: 20, borderRadius: '50%',
-          background: T.amber, border: `2px solid ${T.surface}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-        }}>
-          <i className="ri-camera-line" style={{ fontSize: 9, color: '#000' }}></i>
+const ProfilePanel = ({ data, setData }) => (
+  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 md:space-y-8">
+    <SectionTitle title="Account Profile" subtitle="Manage your public identity and personal details." />
+    
+    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 md:gap-6 p-4 md:p-6 bg-amber-500/5 border border-amber-500/10 rounded-2xl md:rounded-[24px]">
+      <div className="relative group shrink-0">
+        <div className="w-16 h-16 md:w-20 md:h-20 rounded-xl md:rounded-2xl overflow-hidden border-2 border-amber-500/30">
+          <img
+            src={data.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.displayName || data.email)}&background=f59e0b&color=000&size=128&bold=true`}
+            alt="Avatar"
+            className="w-full h-full object-cover"
+          />
+        </div>
+        <button className="absolute -bottom-1 -right-1 md:-bottom-2 md:-right-2 w-6 h-6 md:w-8 md:h-8 bg-amber-500 rounded-lg md:rounded-xl flex items-center justify-center text-black shadow-lg hover:scale-110 active:scale-95 transition-all">
+          <FiCamera size={window.innerWidth < 768 ? 10 : 14} />
+        </button>
+      </div>
+      <div className="text-center sm:text-left min-w-0 flex-1">
+        <h3 className="text-base md:text-lg font-bold text-white leading-tight truncate">{data.displayName || 'No Name Set'}</h3>
+        <p className="text-xs md:text-sm text-gray-500 mt-1 truncate">{data.email}</p>
+        <div className="flex justify-center sm:justify-start gap-2 mt-3">
+          <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[9px] font-bold uppercase rounded border border-amber-500/20">Developer</span>
+          <span className="px-1.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold uppercase rounded border border-emerald-500/20">Active</span>
         </div>
       </div>
-      <div>
-        <p style={{ fontSize: '0.9rem', fontWeight: 700, color: T.text, margin: '0 0 3px' }}>
-          {formData.displayName || 'No name set'}
-        </p>
-        <p style={{ fontSize: '0.72rem', color: T.textMuted, margin: '0 0 7px' }}>{formData.email}</p>
-        <span style={{
-          fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
-          padding: '2px 8px', borderRadius: 5, background: T.amberDim,
-          border: `1px solid ${T.amberBorder}`, color: T.amber,
-          fontFamily: "'Geist Mono', monospace"
-        }}>Developer</span>
-      </div>
-    </motion.div>
+    </div>
 
-    {/* Fields */}
-    <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-      style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}
-    >
-      <StudioInput label="Display Name" type="text" name="displayName" value={formData.displayName} onChange={handleChange} placeholder="Your name" />
-      <StudioInput label="Email Address" type="email" name="email" value={formData.email} disabled
-        style={{ opacity: 0.45, cursor: 'not-allowed' }}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+      <FormInput 
+        label="Display Name" 
+        value={data.displayName} 
+        onChange={(e) => setData({...data, displayName: e.target.value})}
+        placeholder="Enter your name"
       />
-    </motion.div>
-
-    <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-      <StudioTextarea
-        label="Bio" name="bio" rows={3} value={formData.bio} onChange={handleChange}
-        placeholder="Write a short bio about yourself..."
-        maxLen={250}
+      <FormInput 
+        label="Professional Title" 
+        value={data.settings?.role} 
+        onChange={(e) => setData({...data, settings: {...data.settings, role: e.target.value}})}
+        placeholder="e.g. Frontend Architect"
       />
-    </motion.div>
+    </div>
 
-    <motion.div variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}>
-      <StudioInput label="Photo URL" type="url" name="photoURL" value={formData.photoURL} onChange={handleChange} placeholder="https://example.com/avatar.jpg" />
-    </motion.div>
+    <div className="space-y-2">
+      <label className="text-[10px] md:text-[11px] font-bold text-gray-500 uppercase tracking-widest ml-1">About Bio</label>
+      <textarea
+        value={data.bio}
+        onChange={(e) => setData({...data, bio: e.target.value})}
+        placeholder="Write a short bio..."
+        className="w-full bg-black/20 border border-white/5 rounded-xl p-3 md:p-4 text-xs md:text-sm text-white outline-none focus:border-amber-500/40 min-h-[100px] md:min-h-[120px] resize-none"
+      />
+    </div>
   </motion.div>
 );
 
-/* ─────────────────────────────────────────────
-   PREFERENCES TAB
-───────────────────────────────────────────── */
-const PreferencesTab = ({ settings, handleChange }) => (
-  <motion.div variants={{ show: { transition: { staggerChildren: 0.07 } } }} initial="hidden" animate="show">
-    <SettingRow icon="ri-sun-line" accent="#10b981" title="Interface Theme" desc="Choose your preferred visual style across the app.">
-      <StudioSelect
-        name="settings.theme" value={settings.theme} onChange={handleChange}
-        options={[{ value: 'light', label: '☀️ Light' }, { value: 'dark', label: '🌙 Dark' }, { value: 'auto', label: '💻 System' }]}
-      />
-    </SettingRow>
-    <SettingRow icon="ri-text-size" accent="#10b981" title="Editor Font Size" desc="Controls the font size within the code editor.">
-      <StudioSelect
-        name="settings.fontSize" value={settings.fontSize} onChange={handleChange}
-        options={[12, 13, 14, 15, 16, 18].map(s => ({ value: s, label: `${s}px` }))}
-      />
-    </SettingRow>
-    <SettingRow icon="ri-save-3-line" accent="#10b981" title="Auto-Save" desc="Automatically save file changes as you type.">
-      <Toggle name="settings.autoSave" checked={settings.autoSave} onChange={handleChange} accent="#10b981" />
-    </SettingRow>
-    <SettingRow icon="ri-layout-grid-line" accent="#10b981" title="Compact View" desc="Reduce padding for a denser interface layout.">
-      <Toggle name="settings.compactView" checked={settings.compactView || false} onChange={handleChange} accent="#10b981" />
-    </SettingRow>
-  </motion.div>
-);
-
-/* ─────────────────────────────────────────────
-   AI TAB
-───────────────────────────────────────────── */
-const AITab = ({ settings, handleChange }) => (
-  <motion.div variants={{ show: { transition: { staggerChildren: 0.07 } } }} initial="hidden" animate="show" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-    <SettingRow icon="ri-robot-2-line" accent="#6366f1" title="Enable AI Assistance" desc="Unlock AI-powered completions, suggestions, and chat.">
-      <Toggle name="settings.aiAssistance" checked={settings.aiAssistance} onChange={handleChange} accent="#6366f1" />
-    </SettingRow>
-    <SettingRow icon="ri-sparkling-2-line" accent="#6366f1" title="Inline Suggestions" desc="Show ghost-text completions inside the editor.">
-      <Toggle name="settings.inlineSuggestions" checked={settings.inlineSuggestions || true} onChange={handleChange} accent="#6366f1" />
-    </SettingRow>
-    <SettingRow icon="ri-feedback-line" accent="#6366f1" title="Error Explanations" desc="AI explains errors and suggests fixes automatically.">
-      <Toggle name="settings.errorExplain" checked={settings.errorExplain || true} onChange={handleChange} accent="#6366f1" />
-    </SettingRow>
-
-    {/* Feature grid */}
-    <motion.div
-      variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-      style={{
-        marginTop: 20, padding: '16px', borderRadius: 12,
-        background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)'
-      }}
-    >
-      <p style={{ fontSize: '0.72rem', fontWeight: 700, color: '#818cf8', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 12px', fontFamily: "'Geist Mono', monospace" }}>
-        Included AI Capabilities
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 8 }}>
-        {[
-          { icon: 'ri-code-s-slash-line', label: 'Code completion' },
-          { icon: 'ri-bug-line',          label: 'Error detection' },
-          { icon: 'ri-speed-up-line',     label: 'Code optimization' },
-          { icon: 'ri-translate-2',       label: 'Natural language' },
-          { icon: 'ri-git-branch-line',   label: 'Refactoring hints' },
-          { icon: 'ri-shield-check-line', label: 'Security scan' },
-        ].map((f, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-            background: T.surface, borderRadius: 8, border: `1px solid ${T.border}`
-          }}>
-            <i className={f.icon} style={{ fontSize: 13, color: '#818cf8', flexShrink: 0 }}></i>
-            <span style={{ fontSize: '0.76rem', color: T.textMuted }}>{f.label}</span>
+const AppearancePanel = ({ settings, setSettings }) => (
+  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 md:space-y-8">
+    <SectionTitle title="Appearance" subtitle="Customize the visual experience of the AI Studio." />
+    
+    <SettingCard>
+      <div className="flex items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+            <FiMoon size={window.innerWidth < 768 ? 16 : 20} />
           </div>
-        ))}
+          <div className="min-w-0">
+            <p className="text-xs md:text-sm font-bold text-white truncate">Interface Theme</p>
+            <p className="text-[10px] md:text-xs text-gray-500 truncate">Switch modes</p>
+          </div>
+        </div>
+        <select 
+          value={settings.theme}
+          onChange={(e) => setSettings({...settings, theme: e.target.value})}
+          className="bg-black/40 border border-white/10 rounded-lg px-2 py-1 text-[10px] md:text-xs text-white outline-none shrink-0"
+        >
+          <option value="dark">Dark</option>
+          <option value="light">Light</option>
+          <option value="system">Auto</option>
+        </select>
       </div>
-    </motion.div>
+      
+      <div className="space-y-4 pt-6 border-t border-white/5">
+        <ToggleSwitch 
+          label="Auto-Save Changes" 
+          desc="Saves automatically" 
+          checked={settings.autoSave} 
+          onChange={(val) => setSettings({...settings, autoSave: val})}
+          color="bg-emerald-500"
+        />
+        <ToggleSwitch 
+          label="Compact View" 
+          desc="Reduce spacing" 
+          checked={settings.compactView} 
+          onChange={(val) => setSettings({...settings, compactView: val})}
+          color="bg-emerald-500"
+        />
+      </div>
+    </SettingCard>
   </motion.div>
 );
 
-/* ─────────────────────────────────────────────
-   SECURITY TAB
-───────────────────────────────────────────── */
-const SecurityTab = () => {
-  const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [status, setStatus] = useState({ type: 'idle', message: '' });
-  const [showPw, setShowPw] = useState({ current: false, new: false, confirm: false });
+const AISettingsPanel = ({ settings, setSettings }) => (
+  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 md:space-y-8">
+    <SectionTitle title="AI Preferences" subtitle="Configure intelligent models." />
+    
+    <SettingCard className="border-indigo-500/20 bg-indigo-500/[0.02]">
+      <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-indigo-500 flex items-center justify-center text-black shadow-lg shadow-indigo-500/20 shrink-0">
+          <FiCpu size={window.innerWidth < 768 ? 20 : 24} />
+        </div>
+        <div className="min-w-0">
+          <h4 className="text-sm md:text-base font-bold text-white truncate">Gemini 1.5 Pro</h4>
+          <p className="text-[10px] md:text-xs text-indigo-400 truncate">Current active model</p>
+        </div>
+      </div>
 
-  const handleChange = e => setPasswords(p => ({ ...p, [e.target.name]: e.target.value }));
+      <div className="space-y-5 md:space-y-6">
+        <ToggleSwitch 
+          label="Context-Aware AI" 
+          desc="Analyzes entire project" 
+          checked={settings.aiAssistance} 
+          onChange={(val) => setSettings({...settings, aiAssistance: val})}
+          color="bg-indigo-500"
+        />
+        <ToggleSwitch 
+          label="Inline Suggestions" 
+          desc="Code completions" 
+          checked={settings.inlineSuggestions} 
+          onChange={(val) => setSettings({...settings, inlineSuggestions: val})}
+          color="bg-indigo-500"
+        />
+        <ToggleSwitch 
+          label="Error Explain" 
+          desc="Auto explanations" 
+          checked={settings.errorExplain} 
+          onChange={(val) => setSettings({...settings, errorExplain: val})}
+          color="bg-indigo-500"
+        />
+      </div>
+    </SettingCard>
+  </motion.div>
+);
 
-  const strength = (pw) => {
-    if (!pw) return 0;
-    let s = 0;
-    if (pw.length >= 6) s++;
-    if (/[A-Z]/.test(pw)) s++;
-    if (/[0-9]/.test(pw)) s++;
-    if (/[^A-Za-z0-9]/.test(pw)) s++;
-    return s;
-  };
-  const s = strength(passwords.newPassword);
-  const strengthMeta = [
-    null,
-    { label: 'Weak',   color: '#ef4444' },
-    { label: 'Fair',   color: '#f59e0b' },
-    { label: 'Good',   color: '#3b82f6' },
-    { label: 'Strong', color: '#10b981' },
-  ];
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (passwords.newPassword !== passwords.confirmPassword) { setStatus({ type: 'error', message: "Passwords don't match." }); return; }
-    if (passwords.newPassword.length < 3) { setStatus({ type: 'error', message: 'Min 3 characters required.' }); return; }
-    setStatus({ type: 'saving', message: '' });
-    try {
-      const res = await api.put('/users/password', { currentPassword: passwords.currentPassword, newPassword: passwords.newPassword });
-      setStatus({ type: 'success', message: res.data.message || 'Password updated!' });
-      setPasswords({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    } catch (err) {
-      setStatus({ type: 'error', message: err.response?.data?.message || err.response?.data || 'Failed to update.' });
-    } finally {
-      setTimeout(() => setStatus({ type: 'idle', message: '' }), 4000);
-    }
-  };
-
-  const PwInput = ({ label, name, keyName }) => (
-    <div style={{ position: 'relative' }}>
-      <StudioInput
-        label={label}
-        type={showPw[keyName] ? 'text' : 'password'}
-        name={name}
-        value={passwords[name]}
-        onChange={handleChange}
-        placeholder="••••••••"
-        required
-      />
-      <button
-        type="button"
-        onClick={() => setShowPw(p => ({ ...p, [keyName]: !p[keyName] }))}
-        style={{
-          position: 'absolute', right: 11, top: 33,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: T.textMuted, padding: 2, lineHeight: 1
-        }}
-      >
-        <i className={showPw[keyName] ? 'ri-eye-off-line' : 'ri-eye-line'} style={{ fontSize: 15 }}></i>
+const SecurityPanel = () => (
+  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 md:space-y-8">
+    <SectionTitle title="Security" subtitle="Secure your credentials." />
+    <div className="max-w-md space-y-4 md:space-y-6">
+      <FormInput label="Current Password" type="password" icon={<FiLock />} />
+      <FormInput label="New Password" type="password" icon={<FiShield />} />
+      <FormInput label="Confirm New Password" type="password" icon={<FiShield />} />
+      <button className="w-full py-2.5 md:py-3 bg-red-600 hover:bg-red-500 text-white text-xs md:text-sm font-bold rounded-lg md:rounded-xl transition-all flex items-center justify-center gap-2">
+        <FiShield /> Update Password
       </button>
     </div>
-  );
-
-  return (
-    <motion.div variants={{ show: { transition: { staggerChildren: 0.07 } } }} initial="hidden" animate="show"
-      style={{ display: 'flex', flexDirection: 'column', gap: 22 }}
-    >
-      <motion.form
-        variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-        onSubmit={handleSubmit}
-        style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 380 }}
-      >
-        <PwInput label="Current Password" name="currentPassword" keyName="current" />
-
-        <div>
-          <PwInput label="New Password" name="newPassword" keyName="new" />
-          <AnimatePresence>
-            {passwords.newPassword && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                style={{ marginTop: 8 }}>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 5 }}>
-                  {[1,2,3,4].map(i => (
-                    <div key={i} style={{
-                      flex: 1, height: 3, borderRadius: 99, transition: 'background 0.25s',
-                      background: i <= s ? (strengthMeta[s]?.color || T.textDim) : T.surfaceHi
-                    }} />
-                  ))}
-                </div>
-                <p style={{ fontSize: '0.68rem', color: strengthMeta[s]?.color || T.textMuted, fontFamily: "'Geist Mono', monospace" }}>
-                  {strengthMeta[s]?.label}
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        <PwInput label="Confirm New Password" name="confirmPassword" keyName="confirm" />
-
-        <AnimatePresence>
-          {(status.type === 'success' || status.type === 'error') && (
-            <StatusPill type={status.type} message={status.message} />
-          )}
-        </AnimatePresence>
-
-        <button
-          type="submit"
-          disabled={status.type === 'saving'}
-          style={{
-            padding: '10px 20px', borderRadius: 9, border: 'none', cursor: 'pointer',
-            background: status.type === 'saving' ? T.surfaceHi : `linear-gradient(135deg, #dc2626, #b91c1c)`,
-            color: '#fff', fontSize: '0.82rem', fontWeight: 700,
-            fontFamily: "'Syne', sans-serif", transition: 'all 0.18s',
-            opacity: status.type === 'saving' ? 0.6 : 1,
-            boxShadow: status.type === 'saving' ? 'none' : '0 4px 18px rgba(239,68,68,0.3)'
-          }}
-        >
-          {status.type === 'saving'
-            ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                <i className="ri-loader-4-line" style={{ animation: 'spin 1s linear infinite' }}></i> Updating…
-              </span>
-            : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-                <i className="ri-lock-password-line" style={{ fontSize: 14 }}></i> Update Password
-              </span>
-          }
-        </button>
-      </motion.form>
-
-      {/* 2FA card */}
-      <motion.div
-        variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0 } }}
-        style={{
-          padding: '14px 16px', borderRadius: 12,
-          background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <i className="ri-shield-flash-line" style={{ fontSize: 15, color: '#ef4444' }}></i>
-          </div>
-          <div>
-            <p style={{ fontSize: '0.83rem', fontWeight: 600, color: T.text, margin: 0 }}>Two-Factor Authentication</p>
-            <p style={{ fontSize: '0.7rem', color: T.textMuted, margin: '2px 0 0' }}>Add an extra layer of security</p>
-          </div>
-        </div>
-        <span style={{
-          fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase',
-          padding: '4px 9px', borderRadius: 6, background: 'rgba(239,68,68,0.1)',
-          border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444',
-          fontFamily: "'Geist Mono', monospace", whiteSpace: 'nowrap'
-        }}>
-          Coming Soon
-        </span>
-      </motion.div>
-    </motion.div>
-  );
-};
+  </motion.div>
+);
 
 /* ─────────────────────────────────────────────
-   MAIN SETTINGS PAGE
+   MAIN SCREEN
 ───────────────────────────────────────────── */
+
 const Settings = () => {
   const { user, setUser, updateUser } = useContext(UserContext);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [formData, setFormData] = useState(null);
   const [status, setStatus] = useState({ type: 'idle', message: '' });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) { navigate('/login'); return; }
-    api.get('/users/profile')
-      .then(res => {
-        const u = res.data.user;
+    if (!user) {
+      api.get('/users/profile').then(res => {
+        const u = res.data.data.user || res.data.user;
         setUser(u);
-        setFormData({
-          displayName: u.displayName || '', email: u.email || '',
-          bio: u.bio || '', photoURL: u.photoURL || '',
-          settings: { ...defaultSettings, ...(u.settings || {}) },
-        });
-      })
-      .catch(() => navigate('/login'));
-  }, [navigate, setUser]);
+        initForm(u);
+      }).catch(() => navigate('/login'));
+    } else {
+      initForm(user);
+    }
+  }, [user, navigate]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const [section, key] = name.split('.');
-    setFormData(prev => {
-      if (section && key) {
-        return { ...prev, [section]: { ...prev[section], [key]: type === 'checkbox' ? checked : (key === 'fontSize' ? Number(value) : value) } };
-      }
-      return { ...prev, [name]: type === 'checkbox' ? checked : value };
+  const initForm = (u) => {
+    setFormData({
+      displayName: u.displayName || '',
+      email: u.email || '',
+      bio: u.bio || '',
+      photoURL: u.photoURL || '',
+      settings: { ...DEFAULT_SETTINGS, ...(u.settings || {}) },
     });
   };
 
   const handleSave = async () => {
-    setStatus({ type: 'saving', message: '' });
+    setStatus({ type: 'loading', message: 'Saving...' });
     try {
-      const payload = { displayName: formData.displayName, bio: formData.bio || '', photoURL: formData.photoURL || '', settings: formData.settings };
-      const res = await api.put('/users/profile', payload);
-      const u = res.data.user;
-      updateUser(u);
-      setFormData({ displayName: u.displayName || '', email: u.email || '', bio: u.bio || '', photoURL: u.photoURL || '', settings: { ...defaultSettings, ...(u.settings || {}) } });
-      setStatus({ type: 'success', message: 'Changes saved' });
+      const res = await api.put('/users/profile', {
+        displayName: formData.displayName,
+        bio: formData.bio,
+        photoURL: formData.photoURL,
+        settings: formData.settings
+      });
+      updateUser(res.data.data.user || res.data.user);
+      setStatus({ type: 'success', message: 'Saved' });
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to save.';
-      setStatus({ type: 'error', message: String(msg) });
+      setStatus({ type: 'error', message: 'Error' });
     } finally {
-      setTimeout(() => setStatus({ type: 'idle', message: '' }), 4000);
+      setTimeout(() => setStatus({ type: 'idle', message: '' }), 3000);
     }
   };
 
-  const handleCancel = () => {
-    if (user) setFormData({
-      displayName: user.displayName || '', email: user.email || '',
-      bio: user.bio || '', photoURL: user.photoURL || '',
-      settings: { ...defaultSettings, ...(user.settings || {}) },
-    });
-  };
-
-  if (!user || !formData) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', background: T.bg }}>
-        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <motion.div initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
-            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '32px 40px', borderRadius: 16, background: T.surface, border: `1px solid ${T.border}` }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, background: T.amberDim, border: `1px solid ${T.amberBorder}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="ri-loader-4-line" style={{ fontSize: 20, color: T.amber, animation: 'spin 1s linear infinite' }}></i>
-            </div>
-            <p style={{ color: T.textMuted, fontSize: '0.82rem', fontFamily: "'Syne', sans-serif", margin: 0 }}>Loading settings…</p>
-          </motion.div>
-        </main>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
+  if (!formData) return (
+    <div className="h-screen bg-black flex items-center justify-center">
+      <FiLoader className="text-amber-500 animate-spin" size={30} />
+    </div>
+  );
 
   const activeTabData = TABS.find(t => t.id === activeTab);
-  const tabDescriptions = {
-    profile:     'Manage your personal details and public profile',
-    preferences: 'Customize appearance and editor behavior',
-    ai:          'Configure AI assistance and intelligent features',
-    security:    'Update credentials and account protection',
-  };
-  const displayName = user?.displayName || user?.email?.split('@')[0] || 'Developer';
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: T.bg, fontFamily: "'Syne', sans-serif" }}>
-      <motion.button
-          onClick={() => navigate("/")}
-          className="absolute top-8 left-8 flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-          style={{zIndex: 10}}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <FiArrowLeft />
-          Back to Home
-        </motion.button>
-      <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', flex: 1 }}>
-        <main style={{ flex: 1, maxWidth: 920, width: '100%', margin: '0 auto', padding: '32px 20px 48px' }}>
-          <motion.div initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
-            style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-              <div style={{
-                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                background: T.amberDim, border: `1px solid ${T.amberBorder}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: `0 0 20px rgba(245,158,11,0.15)`
-              }}>
-                <i className="ri-settings-4-line" style={{ fontSize: 16, color: T.amber }}></i>
-              </div>
-              <h1 style={{ fontSize: '1.45rem', fontWeight: 800, color: T.text, margin: 0, letterSpacing: '-0.02em' }}>
-                Settings
-              </h1>
+    <div className="h-screen bg-[#08080a] text-white flex flex-col font-['Syne',sans-serif] overflow-hidden">
+      
+      {/* HEADER */}
+      <header className="h-16 border-b border-white/5 flex items-center justify-between px-4 md:px-8 bg-[#0a0a0c]/80 backdrop-blur-xl shrink-0 z-50">
+        <div className="flex items-center gap-3 md:gap-6">
+          <button 
+            className="lg:hidden p-2 text-gray-500 hover:text-white"
+            onClick={() => setIsSidebarOpen(true)}
+          >
+            <FiMenu size={20} />
+          </button>
+          <button onClick={() => navigate(-1)} className="hidden sm:flex p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
+            <FiArrowLeft size={18} />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 md:w-8 md:h-8 rounded-lg bg-amber-500 flex items-center justify-center text-black shrink-0">
+              <FiSettings size={14} md:size={16} />
             </div>
-            <p style={{ fontSize: '0.8rem', color: T.textMuted, margin: 0, paddingLeft: 46 }}>
-              {tabDescriptions[activeTab]}
-            </p>
-          </motion.div>
+            <h1 className="text-[10px] md:text-xs font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] truncate max-w-[120px] sm:max-w-none">
+              Settings
+            </h1>
+          </div>
+        </div>
 
-          <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <motion.aside
-              initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35, delay: 0.08 }}
-              style={{ width: 200, flexShrink: 0, minWidth: 160 }}
-            >
-              <div style={{ background: T.surface, borderRadius: 14, border: `1px solid ${T.border}`, padding: 6, marginBottom: 12 }}>
-                {TABS.map((tab, i) => {
-                  const active = activeTab === tab.id;
-                  return (
-                    <motion.button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.05 }}
-                      style={{
-                        width: '100%', display: 'flex', alignItems: 'center', gap: 9,
-                        padding: '9px 11px', borderRadius: 9, cursor: 'pointer',
-                        border: 'none', textAlign: 'left', transition: 'all 0.14s',
-                        background: active ? `${tab.color}18` : 'transparent',
-                        boxShadow: active ? `inset 0 0 0 1px ${tab.color}30` : 'none',
-                        marginBottom: i < TABS.length - 1 ? 2 : 0,
-                        fontFamily: "'Syne', sans-serif",
-                      }}
-                    >
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-                        background: active ? `${tab.color}20` : T.surfaceHi,
-                        border: `1px solid ${active ? `${tab.color}40` : T.border}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.14s'
-                      }}>
-                        <i className={tab.icon} style={{ fontSize: 13, color: active ? tab.color : T.textMuted }}></i>
-                      </div>
-                      <span style={{ fontSize: '0.8rem', fontWeight: active ? 700 : 500, color: active ? T.text : T.textMuted, transition: 'color 0.14s' }}>
-                        {tab.label}
-                      </span>
-                      {active && (
-                        <motion.div
-                          layoutId="activeIndicator"
-                          style={{ marginLeft: 'auto', width: 4, height: 4, borderRadius: '50%', background: tab.color, flexShrink: 0, boxShadow: `0 0 8px ${tab.color}` }}
-                          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                        />
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </div>
+        <div className="flex items-center gap-2 md:gap-4">
+          <AnimatePresence>
+            {status.message && (
+              <motion.span 
+                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                className={`hidden sm:inline text-[10px] font-bold uppercase ${status.type === 'success' ? 'text-emerald-500' : 'text-red-500'}`}
+              >
+                {status.message}
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <button 
+            onClick={handleSave}
+            disabled={status.type === 'loading'}
+            className="px-4 md:px-6 py-1.5 md:py-2 bg-white text-black text-[10px] md:text-xs font-bold rounded-lg hover:bg-amber-500 transition-all flex items-center gap-2 shadow-lg shadow-white/5 disabled:bg-gray-800 disabled:text-gray-500 whitespace-nowrap"
+          >
+            {status.type === 'loading' ? <FiLoader className="animate-spin" /> : <FiCheck />}
+            <span className="hidden xs:inline">Commit Changes</span>
+            <span className="xs:hidden">Save</span>
+          </button>
+        </div>
+      </header>
 
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45 }}
-                style={{ background: T.surface, borderRadius: 12, border: `1px solid ${T.border}`, padding: '11px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <img
-                  src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email)}&background=f59e0b&color=000&size=40&bold=true`}
-                  alt="" style={{ width: 32, height: 32, borderRadius: 9, objectFit: 'cover', border: `1.5px solid ${T.amberBorder}`, flexShrink: 0 }}
-                />
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: '0.76rem', fontWeight: 700, color: T.text, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {user.displayName || 'User'}
-                  </p>
-                  <p style={{ fontSize: '0.63rem', color: T.textMuted, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {user.email}
-                  </p>
+      {/* MAIN CONTAINER */}
+      <div className="flex-1 flex overflow-hidden relative">
+        
+        {/* SIDEBAR - MOBILE DRAWER */}
+        <AnimatePresence>
+          {isSidebarOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]"
+            />
+          )}
+        </AnimatePresence>
+
+        <aside className={`
+          fixed lg:static inset-y-0 left-0 w-64 lg:w-72 bg-[#0a0a0c] lg:bg-[#0a0a0c]/40 border-r border-white/5 
+          transition-transform duration-300 z-[70] lg:translate-x-0
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          flex flex-col p-4 shrink-0
+        `}>
+          <div className="flex items-center justify-between mb-6 px-4 lg:hidden">
+            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Navigation</p>
+            <button onClick={() => setIsSidebarOpen(false)} className="text-gray-500"><FiX size={20} /></button>
+          </div>
+          
+          <div className="hidden lg:block mb-6 px-4">
+            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Configuration</p>
+          </div>
+
+          <nav className="space-y-1 overflow-y-auto custom-scrollbar flex-1">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all group ${activeTab === tab.id ? 'bg-white/5 text-white' : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.02]'}`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shrink-0 ${activeTab === tab.id ? tab.bg + ' ' + tab.color : 'bg-transparent'}`}>
+                  {tab.icon}
                 </div>
-              </motion.div>
-            </motion.aside>
+                <span className={`text-sm font-bold tracking-tight ${activeTab === tab.id ? 'translate-x-1' : ''} transition-transform`}>{tab.label}</span>
+                {activeTab === tab.id && <FiChevronRight className="ml-auto text-gray-600 hidden lg:block" size={14} />}
+              </button>
+            ))}
+          </nav>
 
-            <motion.div
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.12 }}
-              style={{ flex: 1, minWidth: 0 }}
-            >
-              <div style={{ background: T.surface, borderRadius: 16, border: `1px solid ${T.border}`, overflow: 'hidden' }}>
-                <div style={{
-                  padding: '14px 20px',
-                  borderBottom: `1px solid ${T.border}`,
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  background: `${activeTabData.color}08`
-                }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-                    background: `${activeTabData.color}18`,
-                    border: `1px solid ${activeTabData.color}30`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    <i className={activeTabData.icon} style={{ fontSize: 14, color: activeTabData.color }}></i>
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: T.text, margin: 0 }}>{activeTabData.label}</h2>
-                    <p style={{ fontSize: '0.68rem', color: T.textMuted, margin: 0, fontFamily: "'Geist Mono', monospace" }}>
-                      {tabDescriptions[activeTab]}
-                    </p>
-                  </div>
+          <div className="mt-6 p-4 rounded-2xl bg-gradient-to-br from-amber-500/5 to-transparent border border-white/5 shrink-0">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_#f59e0b]" />
+              <p className="text-[9px] font-bold text-amber-500 uppercase tracking-widest">Storage</p>
+            </div>
+            <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+              <div className="h-full w-[45%] bg-amber-500 rounded-full" />
+            </div>
+          </div>
+        </aside>
 
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-                    {TABS.map(t => (
-                      <button key={t.id} onClick={() => setActiveTab(t.id)}
-                        title={t.label}
-                        style={{
-                          width: 7, height: 7, borderRadius: '50%', border: 'none', cursor: 'pointer', padding: 0, transition: 'all 0.15s',
-                          background: activeTab === t.id ? t.color : T.surfaceHi,
-                          boxShadow: activeTab === t.id ? `0 0 6px ${t.color}` : 'none'
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ padding: '22px 22px 6px' }}>
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={activeTab}
-                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {activeTab === 'profile'     && <ProfileTab formData={formData} handleChange={handleChange} />}
-                      {activeTab === 'preferences' && <PreferencesTab settings={formData.settings} handleChange={handleChange} />}
-                      {activeTab === 'ai'          && <AITab settings={formData.settings} handleChange={handleChange} />}
-                      {activeTab === 'security'    && <SecurityTab />}
-                    </motion.div>
-                  </AnimatePresence>
-                </div>
-
-                {activeTab !== 'security' && (
-                  <div style={{
-                    padding: '14px 22px',
-                    borderTop: `1px solid ${T.border}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                    marginTop: 16
-                  }}>
-                    <AnimatePresence>
-                      {status.message
-                        ? <StatusPill type={status.type} message={status.message} />
-                        : <div />
-                      }
-                    </AnimatePresence>
-
-                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                      <button
-                        onClick={handleCancel}
-                        disabled={status.type === 'saving'}
-                        style={{
-                          padding: '8px 16px', borderRadius: 8, cursor: 'pointer',
-                          background: 'transparent', color: T.textMuted,
-                          border: `1px solid ${T.border}`, fontSize: '0.78rem', fontWeight: 600,
-                          fontFamily: "'Syne', sans-serif", transition: 'all 0.14s'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = T.borderHi; e.currentTarget.style.color = T.text; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMuted; }}
-                      >
-                        Discard
-                      </button>
-
-                      <motion.button
-                        onClick={handleSave}
-                        disabled={status.type === 'saving'}
-                        whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                        style={{
-                          padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                          background: status.type === 'saving'
-                            ? T.surfaceHi
-                            : `linear-gradient(135deg, ${T.amber}, #d97706)`,
-                          color: status.type === 'saving' ? T.textMuted : '#000',
-                          fontSize: '0.78rem', fontWeight: 700, minWidth: 120,
-                          fontFamily: "'Syne', sans-serif", transition: 'all 0.18s',
-                          boxShadow: status.type === 'saving' ? 'none' : `0 4px 18px rgba(245,158,11,0.3)`,
-                          opacity: status.type === 'saving' ? 0.55 : 1
-                        }}
-                      >
-                        {status.type === 'saving'
-                          ? <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-                              <i className="ri-loader-4-line" style={{ animation: 'spin 1s linear infinite' }}></i> Saving…
-                            </span>
-                          : <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-                              <i className="ri-save-3-line" style={{ fontSize: 13 }}></i> Save Changes
-                            </span>
-                        }
-                      </motion.button>
+        {/* CONTENT PANEL */}
+        <main className="flex-1 bg-[#0d0d0f] relative overflow-y-auto custom-scrollbar">
+          <div className="max-w-4xl mx-auto px-4 py-8 md:p-12 lg:px-24 pb-20">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'profile' && <ProfilePanel data={formData} setData={setFormData} />}
+                {activeTab === 'preferences' && <AppearancePanel settings={formData.settings} setSettings={(s) => setFormData({...formData, settings: s})} />}
+                {activeTab === 'ai' && <AISettingsPanel settings={formData.settings} setSettings={(s) => setFormData({...formData, settings: s})} />}
+                {activeTab === 'security' && <SecurityPanel />}
+                
+                {['notifications', 'collaboration', 'billing'].includes(activeTab) && (
+                  <div className="h-full flex flex-col items-center justify-center py-16 md:py-24 text-center">
+                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-white/5 flex items-center justify-center text-gray-600 mb-4 md:mb-6">
+                      {TABS.find(t => t.id === activeTab).icon}
                     </div>
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-2 tracking-tight">Feature in Development</h3>
+                    <p className="text-xs md:text-sm text-gray-500 max-w-[280px] md:max-w-sm mx-auto">This module is coming soon in the next major update.</p>
                   </div>
                 )}
-              </div>
-            </motion.div>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </main>
-        <Footer />
       </div>
 
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 99px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
-        ::placeholder { color: #3a3a48 !important; opacity: 1; }
-        option { background: #131318; color: #f0f0f4; }
-
-        @media (max-width: 640px) {
-          aside { width: 100% !important; min-width: unset !important; }
-          aside > div:first-child nav { display: flex !important; flex-direction: row !important; overflow-x: auto; gap: 4px; }
-          aside > div:first-child nav button { flex-direction: column !important; gap: 4px !important; padding: 8px 10px !important; min-width: 70px; }
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
+        @media (min-width: 768px) { .custom-scrollbar::-webkit-scrollbar { width: 6px; } }
       `}</style>
     </div>
   );

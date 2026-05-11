@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from 'react';
 import axios, { aiApi } from '../config/axios';
-import { UserContext } from '../context/user.context';
+import { UserContext } from '../context/UserContext';
 
 const quickPrompts = [
   { text: 'Create a React login form', icon: 'ri-reactjs-line', color: 'from-cyan-500 to-blue-500' },
@@ -28,7 +28,7 @@ const CopyButton = ({ text, label = 'Copy' }) => {
 /* ─── Inline Markdown ─── */
 const inlineMarkdown = (text) => {
   const parts = [];
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
   let last = 0, match, k = 0;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) parts.push(<span key={k++}>{text.slice(last, match.index)}</span>);
@@ -40,11 +40,15 @@ const inlineMarkdown = (text) => {
     else if (match[5] && match[6]) parts.push(
       <a key={k++} href={match[6]} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2">{match[5]}</a>
     );
+    else if (match[7]) parts.push(
+      <a key={k++} href={match[7]} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2">{match[7]}</a>
+    );
     last = match.index + match[0].length;
   }
   if (last < text.length) parts.push(<span key={k++}>{text.slice(last)}</span>);
   return parts.length > 0 ? parts : text;
 };
+
 
 /* ─── Markdown Renderer ─── */
 const renderMarkdown = (text) => {
@@ -277,14 +281,16 @@ const AIChat = ({ projectId, onClose }) => {
       });
 
       if (res.data.success) {
-        setMessages(prev => [...prev, { id: Date.now() + 1, text: res.data.response, sender: 'ai', timestamp: new Date() }]);
+        const aiText = res.data.data.response;
+        setMessages(prev => [...prev, { id: Date.now() + 1, text: aiText, sender: 'ai', timestamp: new Date() }]);
         if (projectId) {
           try {
-            const saveRes = await axios.post('/ai/save-response', { prompt: text, response: res.data.response, projectId });
-            if (saveRes.data.success && saveRes.data.id) {
-              const link = `${window.location.origin}/ai-response/${saveRes.data.id}`;
-              await axios.post('/project-chat/send', { projectId, message: `🤖 AI: ${link}` });
+            const saveRes = await axios.post('/ai/save-response', { prompt: text, response: aiText, projectId });
+            if (saveRes.data.success && saveRes.data.data?.id) {
+              const link = `${window.location.origin}/ai-response/${saveRes.data.data.id}`;
+              await axios.post('/project-chat/send', { projectId, message: `🤖 AI Assistant: ${link}` });
             } else {
+
               throw new Error('Failed to save AI response or get ID back.');
             }
           } catch (err) {

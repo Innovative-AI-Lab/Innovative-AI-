@@ -16,7 +16,7 @@ const CopyButton = ({ text, label = 'Copy' }) => {
 
 const inlineMarkdown = (text) => {
   const parts = [];
-  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
+  const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s]+))/g;
   let last = 0, match, k = 0;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > last) parts.push(<span key={k++}>{text.slice(last, match.index)}</span>);
@@ -24,11 +24,13 @@ const inlineMarkdown = (text) => {
     else if (match[3]) parts.push(<em key={k++} className="italic text-purple-300">{match[3]}</em>);
     else if (match[4]) parts.push(<code key={k++} className="px-1.5 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-xs font-mono border border-purple-500/20">{match[4]}</code>);
     else if (match[5] && match[6]) parts.push(<a key={k++} href={match[6]} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2">{match[5]}</a>);
+    else if (match[7]) parts.push(<a key={k++} href={match[7]} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 underline underline-offset-2">{match[7]}</a>);
     last = match.index + match[0].length;
   }
   if (last < text.length) parts.push(<span key={k++}>{text.slice(last)}</span>);
   return parts.length > 0 ? parts : text;
 };
+
 
 const renderMarkdown = (text) => {
   const lines = text.split('\n');

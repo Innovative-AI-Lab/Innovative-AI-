@@ -1,7 +1,11 @@
 class AIService {
     constructor() {
         this.apiKey = process.env.GEMINI_API_KEY;
-        this.baseURL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+        this.modelName = 'gemini-flash-latest';
+        this.fallbackModel = 'gemini-2.5-flash'; 
+        this.baseURL = `https://generativelanguage.googleapis.com/v1beta/models`;
+
+
         
         if (!this.apiKey) {
             console.error('⚠️ GEMINI_API_KEY not found in environment variables. AI service will not be available.');
@@ -12,215 +16,142 @@ class AIService {
     }
 
     async generateResponse(prompt, context = '') {
-        if (!this.apiKeyAvailable) {
-            return {
-                success: false,
-                error: 'AI service is not available. GEMINI_API_KEY is missing.',
-                timestamp: new Date().toISOString()
-            };
-        }
         try {
-            const enhancedPrompt = `You are an expert full-stack developer and programming assistant. 
-
-User Request: "${prompt}"
-Context: ${context}
-
-Provide a complete, working solution with:
-1. Full, runnable code (not just snippets)
-2. Proper imports and dependencies
-3. Clear comments explaining the code
-4. Best practices implementation
-
-If it's a React component, provide the complete component.
-If it's a server, provide the complete server setup.
-If it's CSS, provide complete styling.
-
-Always give practical, copy-paste ready code that works immediately.`;
-
-            const response = await fetch(`${this.baseURL}?key=${this.apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: enhancedPrompt }] }],
-                    generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const text = data.candidates[0].content.parts[0].text;
-
-            return {
-                success: true,
-                response: text,
-                timestamp: new Date().toISOString()
-            };
+            return await this.callWithFallback('generateResponse', prompt, context);
         } catch (error) {
-            console.error('Gemini API Error:', error);
-            return {
-                success: false,
-                error: 'Failed to generate response from AI service.',
-                timestamp: new Date().toISOString()
-            };
+            return { success: false, response: "AI service is temporarily unavailable. Please try again." };
         }
     }
 
-    async generateCode(description, language = 'javascript') {
-        if (!this.apiKeyAvailable) {
-            return {
-                success: false,
-                error: 'AI service is not available. GEMINI_API_KEY is missing.',
-                timestamp: new Date().toISOString()
-            };
-        }
+    async callWithFallback(method, ...args) {
+        if (!this.apiKeyAvailable) return { success: false, error: 'AI key missing' };
+        
         try {
-            const codePrompt = `Generate complete, working ${language} code for: ${description}
-            
-            Requirements:
-            - Provide only clean, runnable code
-            - Include proper comments
-            - Follow best practices
-            - Make it production-ready
-            
-            Return only the code without explanations.`;
-
-            const response = await fetch(`${this.baseURL}?key=${this.apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: codePrompt }] }],
-                    generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const code = data.candidates[0].content.parts[0].text;
-
-            return {
-                success: true,
-                code: code,
-                language,
-                description,
-                timestamp: new Date().toISOString()
-            };
+            return await this._executeCall(this.modelName, method, ...args);
         } catch (error) {
-            console.error('Code Generation Error:', error);
-            return {
-                success: false,
-                error: 'Failed to generate code',
-                timestamp: new Date().toISOString()
-            };
+            console.warn(`Primary model ${this.modelName} failed, trying fallback ${this.fallbackModel}...`);
+            try {
+                return await this._executeCall(this.fallbackModel, method, ...args);
+            } catch (fallbackError) {
+                console.error('AI Service Error (All models failed):', fallbackError);
+                throw fallbackError;
+            }
+        }
+    }
+
+    async _executeCall(model, method, ...args) {
+        const url = `${this.baseURL}/${model}:generateContent`;
+        let prompt = '';
+
+        if (method === 'generateResponse') {
+            const [userPrompt, context] = args;
+            prompt = `You are a Senior Full-Stack Developer and AI Assistant. 
+            Context: ${context}
+            User Request: ${userPrompt}
+            
+            Instructions:
+            - Provide accurate, technical, and helpful information.
+            - Use Markdown for code blocks and formatting.
+            - Keep the response concise but thorough (100-250 words).
+            - If code is requested, provide runnable snippets.`;
+        } else if (method === 'generateCode') {
+            const [description, language] = args;
+            prompt = `Generate professional, clean, and documented ${language} code for: ${description}
+            
+            Instructions:
+            - Return ONLY the code inside a Markdown code block.
+            - No preamble or explanations.
+            - Follow best practices for the specified language.`;
+        } else if (method === 'analyzeProject') {
+            const [projectData] = args;
+            prompt = `Perform a deep technical analysis of this project: ${projectData.name}. 
+            
+            Provide:
+            1. Architecture Overview
+            2. Potential Improvements
+            3. Security Vulnerabilities
+            4. Suggested Tech Stack additions
+            
+            Format as a professional technical report using Markdown. Keep it around 200 words.`;
+        } else if (method === 'chatWithAI') {
+            const [message, history] = args;
+            prompt = `You are "Innovative AI", a premium intelligent assistant. 
+            
+            Context of Previous Conversation:
+            ${history && history.length > 0 ? history.slice(-8).map(m => `${m.role}: ${m.content || m.text}`).join('\n') : 'No previous history.'}
+            
+            User Message: ${message}
+            
+            Instructions:
+            - Be helpful, polite, and technical.
+            - Use Markdown for all formatting.
+            - Keep your response between 100 and 150 words.`;
+        }
+
+        const payload = {
+            contents: [{ parts: [{ text: prompt }] }]
+        };
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': this.apiKey
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`API Error: ${response.status} - ${JSON.stringify(errorData)}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data || !data.candidates || !data.candidates.length || !data.candidates[0].content || !data.candidates[0].content.parts || !data.candidates[0].content.parts.length) {
+            throw new Error(`Invalid response parsing: empty candidates or text`);
+        }
+
+        const text = data.candidates[0].content.parts[0].text;
+
+        return {
+            success: true,
+            response: text,
+            timestamp: new Date().toISOString()
+        };
+    }
+
+
+
+    async generateCode(description, language = 'javascript') {
+        try {
+            return await this.callWithFallback('generateCode', description, language);
+        } catch (error) {
+            return { success: false, response: "Code generation currently unavailable." };
         }
     }
 
     async analyzeProject(projectData) {
-        if (!this.apiKeyAvailable) {
-            return {
-                success: false,
-                error: 'AI service is not available. GEMINI_API_KEY is missing.',
-                timestamp: new Date().toISOString()
-            };
-        }
         try {
-            const analysisPrompt = `Analyze this software project:
-            
-            Project Name: ${projectData.name || 'Unknown'}
-            Project ID: ${projectData.id || 'N/A'}
-            
-            Please provide:
-            1. Project summary
-            2. Specific improvement suggestions
-            3. Technology recommendations
-            4. Security considerations
-            5. Performance optimization tips
-            
-            Format as a detailed analysis report.`;
-
-            const response = await fetch(`${this.baseURL}?key=${this.apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: analysisPrompt }] }],
-                    generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const analysis = data.candidates[0].content.parts[0].text;
-
-            return {
-                success: true,
-                analysis: analysis,
-                timestamp: new Date().toISOString()
-            };
+            return await this.callWithFallback('analyzeProject', projectData);
         } catch (error) {
-            console.error('Project Analysis Error:', error);
-            return {
-                success: false,
-                error: 'Failed to analyze project',
-                timestamp: new Date().toISOString()
-            };
+            return { success: false, response: "Project analysis failed." };
         }
     }
 
     async chatWithAI(message, history = []) {
-        if (!this.apiKeyAvailable) {
-            return {
-                reply: "I'm sorry, but the AI service is currently unavailable. Please check back later.",
-                message: "AI service unavailable"
-            };
-        }
         try {
-            // Build conversation context
-            let conversationContext = "You are an intelligent AI assistant for Innovative AI, a full-stack development platform. You help developers with coding, architecture, debugging, and best practices.\n\n";
-            
-            if (history.length > 0) {
-                conversationContext += "Previous conversation:\n";
-                history.slice(-10).forEach(msg => { // Keep last 10 messages for context
-                    const role = msg.role === 'user' ? 'User' : 'Assistant';
-                    conversationContext += `${role}: ${msg.content || msg.text}\n`;
-                });
-                conversationContext += "\n";
-            }
-            
-            conversationContext += `Current user message: ${message}\n\nProvide a helpful, accurate response. Keep it concise but comprehensive.`;
-
-            const response = await fetch(`${this.baseURL}?key=${this.apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: conversationContext }] }],
-                    generationConfig: { thinkingConfig: { thinkingBudget: 0 } }
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
-            }
-
-            const data = await response.json();
-            const reply = data.candidates[0].content.parts[0].text;
-
+            const result = await this.callWithFallback('chatWithAI', message, history);
             return {
-                reply: reply.trim(),
-                message: "Response generated successfully"
+                reply: result.response,
+                message: "Response generated successfully",
+                success: true
             };
         } catch (error) {
-            console.error('AI Chat Error:', error);
             return {
-                reply: "I apologize, but I'm having trouble processing your request right now. Please try again later.",
-                message: "Error occurred"
+                reply: "AI service is temporarily unavailable. Please try again.",
+                message: "Error occurred",
+                success: false
             };
         }
     }

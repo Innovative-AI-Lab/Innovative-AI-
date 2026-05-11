@@ -1,5 +1,6 @@
 import ProjectChat from '../models/projectChat.model.js';
 import userModel from '../models/user.model.js';
+import { successResponse, errorResponse } from '../utils/response.util.js';
 
 export const sendProjectMessage = async (req, res) => {
     try {
@@ -10,12 +11,11 @@ export const sendProjectMessage = async (req, res) => {
         
         // Check if it's an AI message
         if (message.startsWith('🤖 AI Assistant:')) {
-            // Create a system/AI user entry or use a special ID
-            senderId = null; // AI messages don't have a real user sender
+            senderId = null; 
         } else {
             const user = await userModel.findOne({ email: userEmail });
             if (!user) {
-                return res.status(404).json({ error: 'User not found' });
+                return errorResponse(res, 'User not found', 404);
             }
             senderId = user._id;
         }
@@ -27,19 +27,16 @@ export const sendProjectMessage = async (req, res) => {
         });
 
         await chatMessage.save();
-        
-        // Populate sender info for response
         await chatMessage.populate('sender', 'displayName email');
 
-        res.status(201).json({
-            success: true,
-            message: chatMessage
-        });
+        // Emit via socket if available
+        if (global.io) {
+            global.io.to(projectId).emit('new-message', chatMessage);
+        }
+
+        return successResponse(res, chatMessage, 'Message sent successfully', 201);
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
@@ -52,15 +49,9 @@ export const getProjectMessages = async (req, res) => {
             .sort({ timestamp: 1 })
             .limit(100);
 
-        res.status(200).json({
-            success: true,
-            messages
-        });
+        return successResponse(res, messages, 'Messages retrieved successfully');
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
@@ -70,16 +61,10 @@ export const deleteProjectMessage = async (req, res) => {
         
         await ProjectChat.findByIdAndDelete(messageId);
 
-        res.status(200).json({
-            success: true,
-            message: 'Message deleted successfully'
-        });
+        return successResponse(res, null, 'Message deleted successfully');
     } catch (error) {
         console.error('Delete message error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return errorResponse(res, error.message, 500, error);
     }
 };
 
@@ -89,15 +74,9 @@ export const clearProjectMessages = async (req, res) => {
         
         await ProjectChat.deleteMany({ projectId });
 
-        res.status(200).json({
-            success: true,
-            message: 'All messages cleared successfully'
-        });
+        return successResponse(res, null, 'All messages cleared successfully');
     } catch (error) {
         console.error('Clear messages error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        return errorResponse(res, error.message, 500, error);
     }
 };

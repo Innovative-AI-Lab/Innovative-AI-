@@ -18,6 +18,7 @@ import projectChatRoutes from './routes/projectChat.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import activityRoutes from './routes/activity.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import { errorHandler, notFound } from './middleware/error.middleware.js';
 
 const app = express();
 
@@ -26,6 +27,18 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cookieParser());
+
+// Express 5 makes req.query a getter. Polyfill to make it writable for legacy middleware.
+app.use((req, res, next) => {
+  const originalQuery = req.query;
+  Object.defineProperty(req, 'query', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value: originalQuery
+  });
+  next();
+});
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -38,16 +51,20 @@ app.use(morgan('dev'));
 app.use(helmet());
 app.use(compression());
 
-// ⚠️ temporarily disable (ye issue create kar sakte hain)
+app.use(mongoSanitize()); // Prevent NoSQL injection
+app.use(hpp()); // Prevent HTTP Parameter Pollution
+app.use(xss()); // Prevent Cross-Site Scripting (XSS)
 
-app.use(hpp());
-// app.use(xss()); ❌ disable for now
+// Trust proxy for secure headers and rate limiting when behind a reverse proxy (Render/Railway/Vercel)
+app.set('trust proxy', 1);
 
 // ================= RATE LIMIT =================
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
 }));
+
+
 
 // ================= ROUTES =================
 console.log('✅ Setting up routes');
@@ -72,22 +89,11 @@ app.get('/test', (req, res) => {
 });
 
 // ================= 404 =================
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found',
-  });
-});
+app.use(notFound);
 
 // ================= ERROR HANDLER =================
-app.use((err, req, res, next) => {
-  console.error('🔥 GLOBAL ERROR:', err);
+app.use(errorHandler);
 
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal Server Error',
-  });
-});
 
 // ================= DB START =================
 export const start = async () => {

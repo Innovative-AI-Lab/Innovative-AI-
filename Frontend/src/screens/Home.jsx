@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
-import { UserContext } from "../context/user.context";
+import { UserContext } from "../context/UserContext";
 import axios from "../config/axios";
 import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -23,6 +23,7 @@ const Home = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -39,7 +40,7 @@ const Home = () => {
     if (token && userStr) {
       try {
         JSON.parse(decodeURIComponent(userStr));
-        localStorage.setItem("token", token);
+        localStorage.setItem("ai_token", token);
         window.history.replaceState({}, "", "/");
         addToast(`Welcome to ${BRAND.name}!`);
       } catch (e) {}
@@ -70,11 +71,11 @@ const Home = () => {
 
     const fetchNotifications = () => {
       axios.get("/notifications?limit=10").then((res) => {
-        if (res.data.success) setNotifications(res.data.notifications);
+        if (res.data.success) setNotifications(res.data.data.notifications || res.data.notifications || []);
       });
 
       axios.get("/notifications/unread-count").then((res) => {
-        if (res.data.success) setUnreadCount(res.data.count);
+        if (res.data.success) setUnreadCount(res.data.data.count || res.data.count || 0);
       });
     };
 
@@ -154,43 +155,86 @@ const Home = () => {
         onNewProject={() => setIsModalOpen(true)}
         displayName={displayName}
         onLogout={handleLogout}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* MAIN */}
-      <main className="flex-1 p-6 lg:p-8 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        
+        {/* MOBILE HEADER */}
+        <header className="lg:hidden h-16 border-b border-white/[0.06] flex items-center justify-between px-4 bg-[#0a0b0f] shrink-0">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 text-zinc-400 hover:text-white transition-colors"
+          >
+            <i className="ri-menu-line text-2xl"></i>
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-[10px] font-bold text-white">
+              IA
+            </div>
+            <span className="font-bold text-sm tracking-tight">{BRAND.name}</span>
+          </div>
+          <button 
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="p-2 text-zinc-400 hover:text-white transition-colors relative"
+          >
+            <i className="ri-notification-3-line text-xl"></i>
+            {unreadCount > 0 && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-[#0a0b0f]"></span>
+            )}
+          </button>
+        </header>
 
-        {/* 🔔 NOTIFICATION BUTTON */}
-        <div className="flex justify-end mb-4 relative">
+        {/* DESKTOP NOTIFICATION & SEARCH BAR */}
+        <div className="hidden lg:flex justify-end p-6 lg:px-8 pb-0 relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative px-3 py-2 bg-gray-800 rounded-lg hover:bg-gray-700"
+            className="relative p-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl hover:bg-white/[0.06] transition-all group"
           >
-            🔔
+            <i className="ri-notification-3-line text-xl text-zinc-400 group-hover:text-white transition-colors"></i>
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-xs px-1 rounded">
-                {unreadCount}
-              </span>
+              <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-violet-500 rounded-full border-2 border-[#0a0b0f]"></span>
             )}
           </button>
 
           {/* DROPDOWN */}
-          {showNotifications && (
-            <div className="absolute top-10 right-0 w-72 bg-gray-900 border border-gray-700 rounded-lg shadow-lg p-2">
-              {notifications.length === 0 && (
-                <p className="text-sm text-gray-400">No notifications</p>
-              )}
-
-              {notifications.map((n, i) => (
-                <div
-                  key={i}
-                  className="p-2 hover:bg-gray-800 rounded text-sm"
-                >
-                  {n.message || "New update"}
+          <AnimatePresence>
+            {showNotifications && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                className="absolute top-20 right-8 w-80 bg-[#121318] border border-white/[0.08] rounded-2xl shadow-2xl p-4 z-[90] backdrop-blur-xl"
+              >
+                <div className="flex items-center justify-between mb-4 px-1">
+                  <h3 className="font-bold text-zinc-100">Notifications</h3>
+                  <span className="text-[10px] font-bold text-violet-400 uppercase tracking-widest">{unreadCount} New</span>
                 </div>
-              ))}
-            </div>
-          )}
+                
+                <div className="space-y-1 max-h-[320px] overflow-y-auto custom-scrollbar">
+                  {notifications.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <i className="ri-notification-off-line text-3xl text-zinc-700 mb-2 block"></i>
+                      <p className="text-xs text-zinc-500">All caught up!</p>
+                    </div>
+                  ) : (
+                    notifications.map((n, i) => (
+                      <div key={i} className="p-3 hover:bg-white/[0.03] rounded-xl transition-all cursor-pointer group">
+                        <p className="text-xs text-zinc-300 group-hover:text-white transition-colors leading-relaxed">{n.message}</p>
+                        <span className="text-[9px] text-zinc-600 mt-1 block">Just now</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+
+        {/* PAGE CONTENT CONTAINER */}
+        <div className={`flex-1 flex flex-col ${activeId === 'ai-studio' ? 'overflow-hidden' : 'overflow-y-auto p-4 md:p-6 lg:p-8'} custom-scrollbar relative`}>
 
         {/* PAGE CONTENT */}
         <AnimatePresence mode="popLayout">
@@ -211,6 +255,7 @@ const Home = () => {
             )}
           </motion.div>
         </AnimatePresence>
+        </div>
       </main>
 
       {/* MODAL */}

@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema(
     settings: {
       theme: {
         type: String,
-        default: "light",
+        default: "dark",
       },
       fontSize: {
         type: Number,
@@ -46,6 +46,31 @@ const userSchema = new mongoose.Schema(
         type: Boolean,
         default: true,
       },
+      compactView: {
+        type: Boolean,
+        default: false,
+      },
+      inlineSuggestions: {
+        type: Boolean,
+        default: true,
+      },
+      errorExplain: {
+        type: Boolean,
+        default: true,
+      },
+      notifications: {
+        email: { type: Boolean, default: true },
+        push: { type: Boolean, default: true },
+        updates: { type: Boolean, default: false },
+      },
+      aiModel: {
+        type: String,
+        default: "gemini-1.5-flash",
+      },
+      role: {
+        type: String,
+        default: "developer",
+      }
     },
   },
   { timestamps: true }

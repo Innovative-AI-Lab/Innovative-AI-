@@ -7,7 +7,7 @@ import AddMemberModal from '../common/AddMemberModal';
 import EditProjectModal from '../common/EditProjectModal';
 import ProjectCard from '../common/ProjectCard';
 import { BRAND, PROJECT_ACCENTS } from '../../constants';
-import { UserContext } from '../../context/user.context';
+import { UserContext } from '../../context/UserContext';
 
 function ProjectsView({ projects, fetching, onOpenModal, onProjectClick, onProjectUpdated, addToast }) {
   const { user: currentUser } = useContext(UserContext);
@@ -57,21 +57,24 @@ function ProjectsView({ projects, fetching, onOpenModal, onProjectClick, onProje
     <PageView>
       <div className="space-y-5">
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-zinc-100 tracking-tight">All Projects</h2>
             <p className="text-[12px] text-zinc-600 mt-0.5">{projects.length} total · {BRAND.name}</p>
           </div>
-          <div className="flex items-center gap-3">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search projects…"
-              className="h-8 px-3 rounded-lg text-sm text-zinc-300 bg-white/[0.05] border border-white/[0.08] focus:border-violet-500/50 outline-none placeholder-zinc-600 w-44 transition-all"
-            />
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+              <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs"></i>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search projects…"
+                className="w-full sm:w-44 h-9 pl-8 pr-3 rounded-xl text-sm text-zinc-300 bg-white/[0.04] border border-white/[0.08] focus:border-violet-500/40 outline-none placeholder-zinc-600 transition-all"
+              />
+            </div>
             <button
               onClick={onOpenModal}
-              className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[12px] font-semibold bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-md shadow-violet-500/20 transition-all"
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-[12px] font-semibold bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white shadow-lg shadow-violet-500/20 active:scale-95 transition-all"
             >
               <span>＋</span> New
             </button>

@@ -1,13 +1,16 @@
 import mongoose from 'mongoose';
 
-if (!process.env.MONGODB_URI) {
-  console.error('❌ MONGODB_URI is not defined in environment variables');
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI or MONGO_URI is not defined in environment variables');
   process.exit(1);
 }
 
+
 async function connect() {
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,

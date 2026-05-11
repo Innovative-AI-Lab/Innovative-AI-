@@ -18,18 +18,25 @@ function DashboardView({ projects, fetching, displayName, onOpenModal, onProject
       <div className="space-y-7">
 
         {/* ── Welcome Banner ── */}
-        <div className="relative rounded-2xl overflow-hidden border border-violet-500/20 p-7">
+        <div className="relative rounded-2xl overflow-hidden border border-violet-500/20 p-5 md:p-7">
           <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-pink-500/8" />
           <div className="absolute inset-0" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.025) 1px,transparent 1px)',
             backgroundSize: '40px 40px'
           }} />
           <div className="absolute -top-16 -right-8 w-48 h-48 rounded-full bg-violet-500/15 blur-2xl pointer-events-none" />
-          <div className="relative flex flex-wrap items-center gap-5">
-            <div className="w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-xl font-bold text-white flex-shrink-0 shadow-[0_0_32px_rgba(139,92,246,0.4)]">
-              {displayName[0].toUpperCase()}
+          <div className="relative flex flex-col md:flex-row items-start md:items-center gap-5">
+            <div className="flex items-center gap-4 w-full md:w-auto">
+              <div className="w-[52px] h-[52px] rounded-2xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-xl font-bold text-white flex-shrink-0 shadow-[0_0_32px_rgba(139,92,246,0.4)]">
+                {displayName[0].toUpperCase()}
+              </div>
+              <div className="flex-1 md:hidden">
+                <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest">👋 Welcome</p>
+                <h1 className="text-xl font-extrabold text-zinc-100 truncate">{displayName}</h1>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
+            
+            <div className="flex-1 min-w-0 hidden md:block">
               <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-widest mb-1">👋 Welcome back</p>
               <h1 className="text-2xl font-extrabold tracking-tight leading-none bg-gradient-to-r from-zinc-100 to-zinc-400 bg-clip-text text-transparent">
                 {displayName}
@@ -38,17 +45,23 @@ function DashboardView({ projects, fetching, displayName, onOpenModal, onProject
                 {projects.length} project{projects.length !== 1 ? 's' : ''} · {totalMembers} collaborator{totalMembers !== 1 ? 's' : ''} · <span className="text-emerald-400">AI online</span>
               </p>
             </div>
-            <button
-              onClick={onOpenModal}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 hover:-translate-y-0.5 transition-all"
-            >
-              <span>＋</span> New Project
-            </button>
+
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+              <p className="text-xs text-zinc-500 md:hidden">
+                {projects.length} projects · {totalMembers} members
+              </p>
+              <button
+                onClick={onOpenModal}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-violet-500/30 bg-violet-500/10 text-violet-300 hover:bg-violet-500/20 hover:border-violet-500/50 transition-all active:scale-95"
+              >
+                <span>＋</span> New Project
+              </button>
+            </div>
           </div>
         </div>
 
         {/* ── Stats ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             { icon: '📁', value: projects.length, label: 'Total Projects', trend: '+2 this week', pulse: false },
             { icon: '👥', value: totalMembers,    label: 'Collaborators',  trend: '+3 new',       pulse: false },
@@ -101,7 +114,7 @@ function DashboardView({ projects, fetching, displayName, onOpenModal, onProject
         {/* ── Platform Features ── */}
         <div>
           <h2 className="text-[14px] font-bold text-zinc-100 tracking-tight mb-4">Platform Features</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {features.map((f, i) => (
               <motion.div
                 key={i}

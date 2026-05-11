@@ -4,7 +4,7 @@ import { NAV_LINKS, BRAND_INFO } from './Navlinks';
 import { MdOutlineChevronLeft } from 'react-icons/md';
 import { useNavigate } from 'react-router-dom';
 
-const Sidebar = ({ activeId, onLogout, displayName, onNewProject }) => {
+const Sidebar = ({ activeId, onLogout, displayName, onNewProject, isOpen, onClose }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
 
@@ -18,6 +18,7 @@ const Sidebar = ({ activeId, onLogout, displayName, onNewProject }) => {
     } else {
       navigate(`/${item.id}`);
     }
+    if (onClose) onClose(); // Close drawer on navigation
   };
 
   const mainLinks = NAV_LINKS.filter(link => link.section === 'main');
@@ -51,93 +52,82 @@ const Sidebar = ({ activeId, onLogout, displayName, onNewProject }) => {
   );
 
   return (
-    <motion.div
-      initial={false}
-      animate={{ width: isCollapsed ? 80 : 256 }}
-      className="relative flex flex-col h-screen bg-[#0a0b0f] border-r border-white/[0.06] transition-all duration-300 ease-in-out"
-    >
-      {/* Toggle Button */}
-      <button
-        onClick={handleToggle}
-        className="absolute top-1/2 -right-3.5 transform -translate-y-1/2 w-7 h-7 bg-gray-800 border border-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-all z-10"
-      >
-        <MdOutlineChevronLeft
-          className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}
-        />
-      </button>
-
-      {/* Brand */}
-      <div className="flex items-center gap-3 p-4">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white">
-          {BRAND_INFO.shortName}
-        </div>
-        <AnimatePresence>
-          {!isCollapsed && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <h1 className="text-lg font-bold text-zinc-100 tracking-tight">{BRAND_INFO.name}</h1>
-              <p className="text-[10px] text-zinc-500 -mt-0.5">{BRAND_INFO.tagline}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* New Project Button */}
-      <div className="p-4">
-        <button
-          onClick={onNewProject}
-          className={`w-full flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-sm font-semibold shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_28px_rgba(139,92,246,0.45)] hover:-translate-y-px active:translate-y-0 transition-all ${isCollapsed ? 'px-0' : ''}`}
-        >
-          <span className="text-lg">＋</span>
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                New Project
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 flex flex-col p-4 space-y-2">
-        {mainLinks.map(item => (
-          <NavItem
-            key={item.id}
-            item={item}
-            isActive={activeId === item.id}
-            onClick={() => handleNavigate(item)}
-            isCollapsed={isCollapsed}
+    <>
+      {/* MOBILE OVERLAY */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] lg:hidden"
           />
-        ))}
-      </nav>
+        )}
+      </AnimatePresence>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-white/[0.06]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
-            {(displayName || 'U')[0].toUpperCase()}
+      <motion.div
+        initial={false}
+        animate={{ 
+          width: isCollapsed ? 80 : 256,
+          x: (window.innerWidth < 1024 && !isOpen) ? -256 : 0 
+        }}
+        className={`fixed lg:relative flex flex-col h-screen bg-[#0a0b0f] border-r border-white/[0.06] transition-all duration-300 ease-in-out z-[101] lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
+      >
+        {/* Toggle Button (Desktop Only) */}
+        <button
+          onClick={handleToggle}
+          className="hidden lg:flex absolute top-1/2 -right-3.5 transform -translate-y-1/2 w-7 h-7 bg-gray-800 border border-gray-700 rounded-full items-center justify-center text-gray-400 hover:bg-gray-700 hover:text-white transition-all z-10"
+        >
+          <MdOutlineChevronLeft
+            className={`transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`}
+          />
+        </button>
+
+        {/* Brand */}
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center text-sm font-bold text-white">
+              {BRAND_INFO.shortName}
+            </div>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <h1 className="text-lg font-bold text-zinc-100 tracking-tight">{BRAND_INFO.name}</h1>
+                  <p className="text-[10px] text-zinc-500 -mt-0.5">{BRAND_INFO.tagline}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <AnimatePresence>
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <p className="text-sm font-semibold text-zinc-100 leading-tight">{displayName}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* Close button for mobile */}
+          <button onClick={onClose} className="lg:hidden text-zinc-500 p-2"><i className="ri-close-line text-xl"></i></button>
         </div>
 
-        <div className="mt-4 space-y-2">
-          {secondaryLinks.map(item => (
+        {/* New Project Button */}
+        <div className="p-4">
+          <button
+            onClick={() => { onNewProject(); if(onClose) onClose(); }}
+            className={`w-full flex items-center justify-center gap-1.5 h-10 px-3.5 rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white text-sm font-semibold shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_28px_rgba(139,92,246,0.45)] hover:-translate-y-px active:translate-y-0 transition-all ${isCollapsed ? 'px-0' : ''}`}
+          >
+            <span className="text-lg">＋</span>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  New Project
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 flex flex-col p-4 space-y-2 overflow-y-auto custom-scrollbar">
+          {mainLinks.map(item => (
             <NavItem
               key={item.id}
               item={item}
@@ -146,9 +136,42 @@ const Sidebar = ({ activeId, onLogout, displayName, onNewProject }) => {
               isCollapsed={isCollapsed}
             />
           ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs">
+              {(displayName || 'U')[0].toUpperCase()}
+            </div>
+            <AnimatePresence>
+              {!isCollapsed && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <p className="text-sm font-semibold text-zinc-100 leading-tight truncate max-w-[120px]">{displayName}</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {secondaryLinks.map(item => (
+              <NavItem
+                key={item.id}
+                item={item}
+                isActive={activeId === item.id}
+                onClick={() => handleNavigate(item)}
+                isCollapsed={isCollapsed}
+              />
+            ))}
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </>
   );
 };
 
