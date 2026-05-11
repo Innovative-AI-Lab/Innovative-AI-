@@ -38,10 +38,6 @@
 ## 🏠 Landing Page
 
 <p align="center">
-  <img src="./Screenshots/landing-page1.jpeg" width="100%" alt="Innovative AI — Landing Page Hero" />
-</p>
-
-<p align="center">
   <img src="./Screenshots/landing-page2.jpeg" width="100%" alt="Innovative AI — Landing Page Features" />
 </p>
 
@@ -68,7 +64,7 @@
 
 ---
 
-## 🔐 Authentication
+## 🔐 Login Page
 
 <p align="center">
   <img src="./Screenshots/signin-page.png" width="32%" alt="Sign In — Mobile View" />
@@ -131,11 +127,17 @@
 
 ---
 
+## 🤖 AI Assistant
+
+<p align="center">
+  <img src="./Screenshots/landing-page1.jpeg" width="100%" alt="Innovative AI — Landing Page Hero" />
+</p>
+
+---
+
 ## 📱 Mobile Experience
 
 <p align="center">
-  <img src="./Screenshots/signin-page.png" width="30%" alt="Sign In Mobile" />
-  &nbsp;&nbsp;&nbsp;
   <img src="./Screenshots/menu-page.jpeg" width="30%" alt="Menu Mobile" />
   &nbsp;&nbsp;&nbsp;
   <img src="./Screenshots/activity-page.jpeg" width="30%" alt="Activity Mobile" />

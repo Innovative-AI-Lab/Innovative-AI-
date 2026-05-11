@@ -92,12 +92,6 @@ async function startServer(port) {
     });
 
 
-
-    app.get("/", (req, res) => {
-      res.send("Innovative AI Backend Running 🚀");
-    });
-
-
     // ================= START LISTEN =================
     server.listen(port, () => {
       console.log(`🚀 Server running on port ${port}`);

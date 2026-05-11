@@ -117,3 +117,19 @@ Thumbs.db
 # Config files with sensitive data
 config/production.js
 config/development.js
+
+
+
+# Secrets
+*.pem
+*.key
+*.crt
+
+# Local Render/Railway/Vercel files
+.vercel
+.render
+.railway
+
+# Mac/Linux hidden files
+.AppleDouble
+.LSOverride
