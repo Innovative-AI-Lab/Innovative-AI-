@@ -1,18 +1,21 @@
 <div align="center">
 
-<img src="./Frontend/public/Innovative AI — Real-Time AI Dev Platform LOGO.png" width="120px" alt="Innovative AI Logo" />
+<img src="./Frontend/public/Innovative AI — Real-Time AI Dev Platform LOGO.png" width="110px" alt="Innovative AI Logo" />
+
+<br/>
 
 # ⚡ Innovative AI
 
 ### Next-Generation AI-Powered Full-Stack Development Platform
 
-> **Build • Chat • Code • Collaborate — All in ONE Intelligent Workspace**
+> **Build · Chat · Code · Collaborate — All in ONE Intelligent Workspace**
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Vercel-black?style=for-the-badge&logo=vercel)](https://innovative-ai.vercel.app)
-[![Backend](https://img.shields.io/badge/⚙️_Backend-Render-46E3B7?style=for-the-badge&logo=render)](https://innovative-ai-backend-kuq3.onrender.com)
-[![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github)](https://github.com/Innovative-AI-Lab/Innovative-AI-)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_Now-black?style=for-the-badge&logo=vercel)](https://innovative-ai.vercel.app)
+[![Backend API](https://img.shields.io/badge/⚙️_Backend_API-Online-46E3B7?style=for-the-badge&logo=render)](https://innovative-ai-backend-kuq3.onrender.com)
+[![GitHub Repo](https://img.shields.io/badge/GitHub-Source_Code-181717?style=for-the-badge&logo=github)](https://github.com/Innovative-AI-Lab/Innovative-AI-)
+[![Portfolio](https://img.shields.io/badge/🌐_Portfolio-Abhishek_Kumar-blueviolet?style=for-the-badge)](https://abhishek-web.vercel.app/)
 
 <br/>
 
@@ -23,7 +26,7 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)
 ![Socket.io](https://img.shields.io/badge/Socket.io-010101?style=flat-square&logo=socketdotio&logoColor=white)
 ![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)
-![Google Gemini](https://img.shields.io/badge/Gemini_AI-4285F4?style=flat-square&logo=google&logoColor=white)
+![Gemini AI](https://img.shields.io/badge/Gemini_AI-4285F4?style=flat-square&logo=google&logoColor=white)
 ![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
 ![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=black)
@@ -32,115 +35,110 @@
 
 ---
 
-## 📸 Platform Preview
+## 🏠 Landing Page
 
 <p align="center">
-  <img src="./Screenshots/Innovative 1.jpeg" width="100%" alt="Innovative AI — Landing Page" />
+  <img src="./Screenshots/landing-page.jpeg" width="100%" alt="Innovative AI — Landing Page" />
 </p>
-
-<p align="center"><i>🏠 Landing Page — Futuristic hero with live demo access</i></p>
+<p align="center"><i>Futuristic hero landing page with live demo access and platform overview</i></p>
 
 ---
 
 ## 🧠 What is Innovative AI?
 
-**Innovative AI** is a premium, production-grade **AI-powered full-stack development platform** built for modern developers and teams.
-
-It unifies everything a developer needs into one intelligent workspace:
+**Innovative AI** is a premium, production-grade **AI-powered full-stack development platform** built for modern developers and teams. It unifies everything a developer needs into one intelligent workspace — from real-time collaboration and AI-assisted coding to an integrated terminal and smart file management.
 
 | Capability | Description |
 |---|---|
-| 💬 **Real-Time Team Chat** | Instant WebSocket-powered collaboration |
-| 🤖 **AI Assistant** | Gemini-powered code generation & analysis |
+| 💬 **Real-Time Team Chat** | Instant WebSocket-powered collaboration with zero latency |
+| 🤖 **AI Assistant** | Gemini-powered code generation, analysis & debugging |
 | 💻 **Code Editor** | Write & execute code directly in the browser |
-| 📂 **File Manager** | Upload, organize, and manage project files |
+| 📂 **File Manager** | Upload, organize, and manage project files securely |
 | 🖥️ **Live Terminal** | Run commands inside your project workspace |
-| 🔔 **Notifications** | Real-time activity streams & alerts |
+| 🔔 **Notifications** | Real-time activity streams & smart alerts |
 
 ---
 
-## 🖼️ Screenshots
-
-### 🔐 Authentication
+## 🔐 Authentication
 
 <p align="center">
-  <img src="./Screenshots/Innovative 2.jpeg" width="48%" alt="Login Screen" />
+  <img src="./Screenshots/login-page.jpeg" width="48%" alt="Login Page" />
   &nbsp;&nbsp;
-  <img src="./Screenshots/Innovative 3.jpeg" width="48%" alt="Register Screen" />
+  <img src="./Screenshots/signup-page.jpeg" width="48%" alt="Signup Page" />
 </p>
-<p align="center"><i>Secure JWT-based Login & Registration</i></p>
+<p align="center"><i>Secure JWT-based Login & Registration — stateless, fast, and production-hardened</i></p>
 
 ---
 
-### 🏠 Dashboard & Projects
+## 📊 Project Dashboard
 
 <p align="center">
-  <img src="./Screenshots/Innovative 4.jpeg" width="100%" alt="Dashboard" />
+  <img src="./Screenshots/dashboard-page.jpeg" width="100%" alt="Project Dashboard" />
 </p>
-<p align="center"><i>📊 Project Dashboard — Create, manage, and join workspaces</i></p>
+<p align="center"><i>Central dashboard — create, manage, and join project workspaces in one view</i></p>
 
 ---
 
-### 💬 Real-Time Collaboration Chat
+## 💬 Real-Time Team Collaboration
 
 <p align="center">
-  <img src="./Screenshots/Innovative 5.jpeg" width="100%" alt="Real-Time Chat" />
+  <img src="./Screenshots/team-collaboration.jpeg" width="100%" alt="Team Collaboration Chat" />
 </p>
-<p align="center"><i>⚡ Live team chat powered by Socket.io</i></p>
+<p align="center"><i>Live team chat powered by Socket.io — instant messaging with real-time presence</i></p>
 
 ---
 
-### 🤖 AI Studio — Gemini Powered
+## 🤖 AI Studio — Gemini Powered
 
 <p align="center">
-  <img src="./Screenshots/Innovative 6.jpeg" width="100%" alt="AI Studio" />
+  <img src="./Screenshots/ai-studio.jpeg" width="100%" alt="AI Studio" />
 </p>
-<p align="center"><i>🧠 AI Studio — Context-aware conversations with Gemini Flash</i></p>
+<p align="center"><i>Context-aware AI conversations using Gemini Flash — generate, refactor, and debug code instantly</i></p>
 
 ---
 
-### 💻 Integrated Code Editor
+## 💻 Integrated Code Editor
 
 <p align="center">
-  <img src="./Screenshots/Innovative 7.jpeg" width="100%" alt="Code Editor" />
+  <img src="./Screenshots/code-editor.jpeg" width="100%" alt="Code Editor" />
 </p>
-<p align="center"><i>💻 Built-in code editor — Write, edit, and execute without leaving the browser</i></p>
+<p align="center"><i>Built-in browser code editor — write, edit, and execute without leaving the platform</i></p>
 
 ---
 
-### 📂 Smart File Manager
+## 📂 Smart File Manager
 
 <p align="center">
-  <img src="./Screenshots/Innovative 8.jpeg" width="100%" alt="File Manager" />
+  <img src="./Screenshots/file-manager.jpeg" width="100%" alt="File Manager" />
 </p>
-<p align="center"><i>📂 Smart file manager — Upload and organize project assets</i></p>
+<p align="center"><i>Smart file manager — upload, organize, and manage all project assets securely</i></p>
 
 ---
 
-### 🖥️ Live Terminal & Project Workspace
+## 🖥️ Live Terminal & Project Workspace
 
 <p align="center">
-  <img src="./Screenshots/Innovative 9.png" width="48%" alt="Terminal" />
+  <img src="./Screenshots/live-terminal.png" width="48%" alt="Live Terminal" />
   &nbsp;&nbsp;
-  <img src="./Screenshots/Innovative 10.png" width="48%" alt="Project Workspace" />
+  <img src="./Screenshots/project-workspace.png" width="48%" alt="Project Workspace" />
 </p>
-<p align="center"><i>🖥️ Integrated terminal & full project workspace view</i></p>
+<p align="center"><i>Integrated terminal & full project workspace — run commands and manage everything in one place</i></p>
 
 ---
 
-### 🔔 Notifications & Activity Feed
+## 🔔 Notifications & Activity Feed
 
 <p align="center">
-  <img src="./Screenshots/Innovative 11.png" width="100%" alt="Notifications" />
+  <img src="./Screenshots/notifications.png" width="100%" alt="Notifications" />
 </p>
-<p align="center"><i>🔔 Real-time notifications and live activity streams</i></p>
+<p align="center"><i>Real-time notifications and live activity streams — stay updated on every project event</i></p>
 
 ---
 
 ## 🔥 Core Features
 
 ### ⚡ Developer Experience
-- 🧠 **AI Coding Assistant** — Generate, refactor, and debug code instantly with Gemini
+- 🧠 **AI Coding Assistant** — Generate, refactor, and debug code instantly with Gemini Flash
 - 💻 **Built-in Code Editor** — Write and execute code without leaving the browser
 - 📂 **Smart File Manager** — Upload, organize, and manage project files securely
 - 🖥️ **Integrated Terminal** — Run commands directly within your project workspace
@@ -253,7 +251,7 @@ FRONTEND_URL=http://localhost:5173
 VITE_API_URL=http://localhost:4001
 ```
 
-> ⚠️ **Never commit `.env` files. They are protected by `.gitignore`.**
+> ⚠️ Never commit `.env` files. They are protected by `.gitignore`.
 
 ### 🌐 Access Locally
 
@@ -321,27 +319,19 @@ cd Backend
 
 ## 🤝 Contributing
 
-Contributions are welcome!
-
 ```bash
-# 1. Fork the repository
-# 2. Create your feature branch
-git checkout -b feature/amazing-feature
-
-# 3. Commit your changes
-git commit -m "feat: add amazing feature"
-
-# 4. Push to your branch
-git push origin feature/amazing-feature
-
-# 5. Open a Pull Request
+# Fork the repository, then:
+git checkout -b feature/your-feature
+git commit -m "feat: your feature description"
+git push origin feature/your-feature
+# Open a Pull Request
 ```
 
-> Please follow clean commit conventions and never commit secrets or `.env` files.
+> Never commit `.env` files or secrets. Follow clean commit conventions.
 
 ---
 
-## 👨‍💻 About the Developer
+## 👨💻 About the Developer
 
 <div align="center">
 
@@ -351,16 +341,16 @@ git push origin feature/amazing-feature
 
 Building next-generation AI-powered SaaS products that push the boundaries of what's possible on the web.
 
-[![Portfolio](https://img.shields.io/badge/🌐_Portfolio-Visit-blueviolet?style=for-the-badge)](ADD_MY_PORTFOLIO_LINK_HERE)
-[![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=for-the-badge&logo=github)](https://github.com/Innovative-AI-Lab)
+<br/>
+
+[![Portfolio](https://img.shields.io/badge/🌐_Portfolio-abhishek--web.vercel.app-blueviolet?style=for-the-badge)](https://abhishek-web.vercel.app/)
+[![GitHub](https://img.shields.io/badge/GitHub-Innovative--AI--Lab-181717?style=for-the-badge&logo=github)](https://github.com/Innovative-AI-Lab)
 
 </div>
 
 ---
 
 ## ⭐ Support the Project
-
-If Innovative AI inspired or helped you:
 
 - ⭐ **Star** the repository
 - 🚀 **Share** with other developers
@@ -375,7 +365,7 @@ If Innovative AI inspired or helped you:
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🚀_Try_It_Live-innovative--ai.vercel.app-black?style=for-the-badge)](https://innovative-ai.vercel.app)
+[![Try It Live](https://img.shields.io/badge/🚀_Try_It_Live-innovative--ai.vercel.app-black?style=for-the-badge)](https://innovative-ai.vercel.app)
 
 <br/>
 
