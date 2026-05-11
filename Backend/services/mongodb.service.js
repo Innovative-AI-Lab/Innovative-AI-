@@ -7,11 +7,23 @@ class MongoDBService {
 
     async connect() {
         try {
-            await mongoose.connect(process.env.MONGODB_URI);
+            const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+            if (!MONGODB_URI) throw new Error('MONGODB_URI is not defined');
+
+            // Production-ready connection options
+            const options = {
+              serverSelectionTimeoutMS: 5000, 
+              socketTimeoutMS: 45000, 
+              maxPoolSize: 50, 
+            };
+
+            await mongoose.connect(MONGODB_URI, options);
             this.isConnected = true;
-            console.log('Connected to MongoDB Compass');
+            console.log('✅ Connected to MongoDB Atlas (Service)');
         } catch (error) {
-            console.error('MongoDB connection error:', error);
+            console.error('\n❌ MongoDB Service Connection Error:', error.message);
+            // We do not exit process here as it might be an optional service connect, 
+            // but we throw it safely so the caller knows it failed.
             throw error;
         }
     }
