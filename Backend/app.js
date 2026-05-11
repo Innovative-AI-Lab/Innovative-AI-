@@ -78,6 +78,14 @@ app.use('/auth', authRoutes);
 app.use('/activity', activityRoutes);
 app.use('/notifications', notificationRoutes);
 
+// ================= ROOT =================
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Innovative AI Backend Running 🚀',
+  });
+});
+
 // ================= HEALTH =================
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
