@@ -12,7 +12,7 @@
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_Now-black?style=for-the-badge&logo=vercel)](https://innovative-ai.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Visit_Now-black?style=for-the-badge&logo=vercel)](https://innovative-ai-lab.vercel.app)
 [![Backend API](https://img.shields.io/badge/⚙️_Backend_API-Online-46E3B7?style=for-the-badge&logo=render)](https://innovative-ai-backend-kuq3.onrender.com)
 [![GitHub Repo](https://img.shields.io/badge/GitHub-Source_Code-181717?style=for-the-badge&logo=github)](https://github.com/Innovative-AI-Lab/Innovative-AI-)
 [![Portfolio](https://img.shields.io/badge/🌐_Portfolio-Abhishek_Kumar-blueviolet?style=for-the-badge)](https://abhishek-web.vercel.app/)
